@@ -1,0 +1,120 @@
+"use client"
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+  TooltipProps,
+} from "recharts"
+import { formatCurrency } from "@/lib/utils"
+
+interface CategoryData {
+  id: string
+  name: string
+  color: string
+  amount: number
+  percentage: number
+}
+
+interface CategoryDistributionProps {
+  data: CategoryData[]
+}
+
+export function CategoryDistribution({ data }: CategoryDistributionProps) {
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[300px] text-center">
+        <p className="text-muted-foreground">No category data available.</p>
+      </div>
+    )
+  }
+
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload as CategoryData
+      return (
+        <div className="bg-background border border-border rounded-md shadow-md p-2">
+          <p className="font-medium">{data.name}</p>
+          <p className="text-primary">{formatCurrency(data.amount)}</p>
+          <p className="text-sm text-muted-foreground">{data.percentage?.toFixed(1) ?? '0.0'}%</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+  }: {
+    cx: number
+    cy: number
+    midAngle: number
+    innerRadius: number
+    outerRadius: number
+    percent: number
+  }) => {
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+    return percent > 0.05 ? (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+        fontWeight="bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    ) : null
+  }
+
+  return (
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={renderCustomizedLabel}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="amount"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+          <Legend
+            layout="vertical"
+            verticalAlign="middle"
+            align="right"
+            formatter={(value, entry, index) => {
+              const { payload } = entry as any
+              return (
+                <span className="text-xs">
+                  {payload.name} ({payload.percentage?.toFixed(1) ?? '0.0'}%)
+                </span>
+              )
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
