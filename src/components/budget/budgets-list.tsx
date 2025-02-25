@@ -1,0 +1,142 @@
+"use client"
+
+import { useState } from "react"
+import { format } from "date-fns"
+import { Pencil, Trash2 } from "lucide-react"
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
+import { formatCurrency } from "@/lib/utils"
+import { BudgetDialog } from "@/components/budget/budget-dialog"
+import { deleteBudgetAction } from "@/app/actions/budget-actions"
+
+export function BudgetsList({
+  budgets,
+  categories,
+}: {
+  budgets: any[]
+  categories: any[]
+}) {
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId)
+    return category ? category.name : "Unknown"
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      setIsDeleting(true)
+      await deleteBudgetAction(id)
+      toast({
+        title: "Budget deleted",
+        description: "Your budget has been deleted successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  if (budgets.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <p className="mb-4 text-sm text-muted-foreground">
+          You haven&apos;t created any budgets yet.
+        </p>
+        <BudgetDialog categories={categories}>
+          <Button size="sm">Create your first budget</Button>
+        </BudgetDialog>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Category</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Period</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {budgets.map((budget) => (
+            <TableRow key={budget.id}>
+              <TableCell>{getCategoryName(budget.categoryId)}</TableCell>
+              <TableCell>{formatCurrency(budget.amount)}</TableCell>
+              <TableCell>
+                {format(new Date(budget.startDate), "MMM d, yyyy")} -{" "}
+                {format(new Date(budget.endDate), "MMM d, yyyy")}
+              </TableCell>
+              <TableCell>{budget.description || "—"}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  <BudgetDialog budget={budget} categories={categories}>
+                    <Button size="icon" variant="ghost">
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
+                  </BudgetDialog>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="ghost">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Budget</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this budget? This
+                          action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(budget.id)}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}

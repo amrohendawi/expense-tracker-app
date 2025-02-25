@@ -5,7 +5,14 @@ import { prisma } from "@/lib/prisma"
 import { Budget } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
-export async function createBudgetAction(data: Omit<Budget, "id" | "userId" | "createdAt" | "updatedAt">) {
+export async function createBudgetAction(data: {
+  amount: number;
+  categoryId: string;
+  startDate: Date;
+  endDate: Date;
+  description?: string;
+  period: string;
+}) {
   const { userId } = auth();
   
   if (!userId) {
@@ -24,7 +31,18 @@ export async function createBudgetAction(data: Omit<Budget, "id" | "userId" | "c
   return budget;
 }
 
-export async function updateBudgetAction(id: string, data: Partial<Omit<Budget, "id" | "userId" | "createdAt" | "updatedAt">>) {
+export async function updateBudgetAction({
+  id,
+  ...data
+}: {
+  id: string;
+  amount?: number;
+  categoryId?: string;
+  startDate?: Date;
+  endDate?: Date;
+  description?: string;
+  period?: string;
+}) {
   const { userId } = auth();
   
   if (!userId) {
@@ -150,7 +168,11 @@ export async function getBudgetStatusAction() {
     const percentage = (spent / budget.amount) * 100;
 
     return {
-      budget,
+      category: budget.category,
+      budget: {
+        id: budget.id,
+        amount: budget.amount
+      },
       spent,
       remaining,
       percentage,

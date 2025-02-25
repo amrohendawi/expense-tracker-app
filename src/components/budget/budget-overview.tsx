@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 interface BudgetStatusItem {
-  category: {
+  category?: {
     id: string
     name: string
     color: string
@@ -35,12 +35,16 @@ export function BudgetOverview({ budgetStatus }: BudgetOverviewProps) {
   return (
     <div className="space-y-4">
       {budgetStatus.map((item) => (
-        <div key={item.category.id} className="space-y-2">
+        <div key={item.budget.id} className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Badge style={{ backgroundColor: item.category.color }}>
-                {item.category.name}
-              </Badge>
+              {item.category ? (
+                <Badge style={{ backgroundColor: item.category.color }}>
+                  {item.category.name}
+                </Badge>
+              ) : (
+                <Badge>General</Badge>
+              )}
             </div>
             <div className="text-sm font-medium">
               {formatCurrency(item.spent)} / {formatCurrency(item.budget.amount)}

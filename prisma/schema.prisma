@@ -59,6 +59,9 @@ model Budget {
   id         String   @id @default(cuid())
   amount     Float
   period     String   // "monthly", "weekly", "yearly"
+  startDate  DateTime
+  endDate    DateTime
+  description String?
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   userId     String
