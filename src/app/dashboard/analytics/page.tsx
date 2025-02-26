@@ -28,6 +28,7 @@ import { BudgetVsActual } from "@/components/analytics/budget-vs-actual"
 import { TopExpenses } from "@/components/analytics/top-expenses"
 import { ExpenseTrends } from "@/components/analytics/expense-trends"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Separator } from "@/components/ui/separator"
 
 export default async function AnalyticsPage() {
   // Get the current date
@@ -51,9 +52,13 @@ export default async function AnalyticsPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <SidebarTrigger className="md:hidden" />
-          <div className="flex w-full items-center justify-between">
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-4"
+            />
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -67,7 +72,7 @@ export default async function AnalyticsPage() {
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">
             Get insights into your spending habits and financial trends.
