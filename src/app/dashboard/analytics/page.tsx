@@ -78,12 +78,10 @@ export default async function AnalyticsPage() {
             Get insights into your spending habits and financial trends.
           </p>
           
-          {/* Expense Trends */}
-          <ExpenseTrends trends={trends} />
-          
           <Tabs defaultValue="charts" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="charts">Charts</TabsTrigger>
+              <TabsTrigger value="trends">Trends</TabsTrigger>
               <TabsTrigger value="budgets">Budget Comparison</TabsTrigger>
               <TabsTrigger value="expenses">Top Expenses</TabsTrigger>
             </TabsList>
@@ -114,6 +112,17 @@ export default async function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <MonthlyTrend data={monthlyData} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="trends" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Expense Trends</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ExpenseTrends trends={trends} />
                 </CardContent>
               </Card>
             </TabsContent>

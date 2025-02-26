@@ -6,6 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
+// Define a simplified category type that matches what's returned from getCategoriesAction
+type CategoryWithBasicInfo = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -27,7 +34,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { createCategoryAction, updateCategoryAction } from "@/app/actions/category-actions"
-import { Category } from "@prisma/client"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -42,7 +48,7 @@ type CategoryFormValues = z.infer<typeof formSchema>
 
 interface CategoryDialogProps {
   children: React.ReactNode
-  category?: Category
+  category?: CategoryWithBasicInfo
   onSuccess?: () => void
 }
 

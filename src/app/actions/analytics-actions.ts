@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 
 export async function getExpensesByCategoryAction(startDate: Date, endDate: Date) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -59,7 +59,7 @@ export async function getExpensesByCategoryAction(startDate: Date, endDate: Date
 }
 
 export async function getMonthlyExpensesAction(year: number) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -89,7 +89,7 @@ export async function getMonthlyExpensesAction(year: number) {
 }
 
 export async function getBudgetVsActualAction(startDate: Date, endDate: Date) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -146,7 +146,7 @@ export async function getBudgetVsActualAction(startDate: Date, endDate: Date) {
 }
 
 export async function getTopExpensesAction(limit: number = 5) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -169,7 +169,7 @@ export async function getTopExpensesAction(limit: number = 5) {
 }
 
 export async function getExpenseTrendsAction() {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return {

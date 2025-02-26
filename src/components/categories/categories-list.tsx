@@ -2,8 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Category } from "@prisma/client"
 import { Edit, Trash2 } from "lucide-react"
+
+// Define a simplified category type that matches what's returned from getCategoriesAction
+type CategoryWithBasicInfo = {
+  id: string;
+  name: string;
+  color: string;
+};
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,7 +36,7 @@ import { deleteCategoryAction } from "@/app/actions/category-actions"
 import { CategoryDialog } from "./category-dialog"
 
 interface CategoriesListProps {
-  categories: Category[]
+  categories: CategoryWithBasicInfo[]
 }
 
 export function CategoriesList({ categories }: CategoriesListProps) {

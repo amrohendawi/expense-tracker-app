@@ -29,7 +29,17 @@ export function MonthlyTrend({ data }: MonthlyTrendProps) {
     )
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  interface CustomTooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      value: number;
+      payload: {
+        name: string;
+      };
+    }>;
+  }
+
+  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">

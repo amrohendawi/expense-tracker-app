@@ -6,6 +6,13 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
 
+// Define a simplified category type that matches what's returned from getCategoriesAction
+type CategoryWithBasicInfo = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -35,7 +42,6 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { createExpenseAction, updateExpenseAction } from "@/app/actions/expense-actions"
-import { Category } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -62,9 +68,9 @@ interface ExpenseDialogProps {
     date: Date
     categoryId: string
     description?: string
-    category: Category
+    category: CategoryWithBasicInfo
   }
-  categories?: Category[]
+  categories?: CategoryWithBasicInfo[]
   onSuccess?: () => void
 }
 
@@ -100,14 +106,20 @@ export function ExpenseDialog({
 
   async function onSubmit(values: ExpenseFormValues) {
     try {
+      // Ensure description is null if it's undefined
+      const formattedValues = {
+        ...values,
+        description: values.description || null,
+      };
+      
       if (expense) {
-        await updateExpenseAction(expense.id, values)
+        await updateExpenseAction(expense.id, formattedValues)
         toast({
           title: "Expense updated",
           description: "Your expense has been updated successfully.",
         })
       } else {
-        await createExpenseAction(values)
+        await createExpenseAction(formattedValues)
         toast({
           title: "Expense created",
           description: "Your expense has been created successfully.",

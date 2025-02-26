@@ -58,7 +58,20 @@ export function generateYearOptions(): { value: number; label: string }[] {
   return years;
 }
 
-export function calculateTotalExpenses(expenses: any[]): number {
+interface ExpenseWithAmount {
+  amount: number;
+  id?: string;
+  description?: string;
+  date?: Date;
+  categoryId?: string;
+  category?: {
+    id: string;
+    name: string;
+    color?: string;
+  };
+}
+
+export function calculateTotalExpenses(expenses: ExpenseWithAmount[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
 }
 

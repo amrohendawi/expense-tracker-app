@@ -35,7 +35,13 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { createBudgetAction, updateBudgetAction } from "@/app/actions/budget-actions"
-import { Category } from "@prisma/client"
+
+// Define a simplified category type that matches what's returned from getCategoriesAction
+type CategoryWithBasicInfo = {
+  id: string;
+  name: string;
+  color: string;
+};
 
 const budgetFormSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
@@ -63,7 +69,7 @@ export function BudgetDialog({
     description?: string
     period?: string
   }
-  categories: Category[]
+  categories: CategoryWithBasicInfo[]
 }) {
   const [open, setOpen] = useState(false)
 

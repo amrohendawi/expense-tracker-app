@@ -2,11 +2,10 @@
 
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
-import { Category } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 export async function createCategoryAction(data: { name: string; color: string }) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -26,7 +25,7 @@ export async function createCategoryAction(data: { name: string; color: string }
 }
 
 export async function updateCategoryAction(id: string, data: { name: string; color: string }) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -55,7 +54,7 @@ export async function updateCategoryAction(id: string, data: { name: string; col
 }
 
 export async function deleteCategoryAction(id: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");

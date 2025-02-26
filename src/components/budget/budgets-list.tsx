@@ -36,16 +36,19 @@ interface BudgetWithCategory {
   amount: number
   startDate: Date
   endDate: Date
-  description?: string | null
+  description?: string
+  period?: string
   category: {
     id: string
     name: string
+    color: string
   }
 }
 
 interface Category {
   id: string
   name: string
+  color: string
 }
 
 export function BudgetsList() {
@@ -95,7 +98,7 @@ export function BudgetsList() {
         title: "Budget deleted",
         description: "Your budget has been deleted successfully.",
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",

@@ -19,7 +19,7 @@ export function PreferencesForm({ initialSettings }: PreferencesFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   
-  const handleChange = (key: keyof UserSettings, value: any) => {
+  const handleChange = (key: keyof UserSettings, value: string | boolean | number) => {
     setSettings(prev => ({ ...prev, [key]: value }))
   }
   

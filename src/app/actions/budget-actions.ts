@@ -12,7 +12,7 @@ export async function createBudgetAction(data: {
   description?: string;
   period: string;
 }) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -42,7 +42,7 @@ export async function updateBudgetAction({
   description?: string;
   period?: string;
 }) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -71,7 +71,7 @@ export async function updateBudgetAction({
 }
 
 export async function deleteBudgetAction(id: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -99,7 +99,7 @@ export async function deleteBudgetAction(id: string) {
 }
 
 export async function getBudgetsAction() {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -118,7 +118,7 @@ export async function getBudgetsAction() {
 }
 
 export async function getBudgetStatusAction() {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];

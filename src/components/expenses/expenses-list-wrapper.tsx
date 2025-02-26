@@ -12,7 +12,7 @@ interface Expense {
   amount: number
   date: Date
   categoryId: string
-  description?: string
+  description: string | null
   category: { id: string; name: string; color: string }
 }
 

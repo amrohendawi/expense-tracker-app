@@ -28,7 +28,7 @@ export function ProfileSettings() {
         title: "Profile updated",
         description: "Your profile has been updated successfully",
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update profile",

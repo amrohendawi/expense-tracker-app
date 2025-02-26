@@ -6,7 +6,7 @@ import { Expense } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -24,7 +24,7 @@ export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | 
 }
 
 export async function updateExpenseAction(id: string, data: Partial<Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">>) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -52,7 +52,7 @@ export async function updateExpenseAction(id: string, data: Partial<Omit<Expense
 }
 
 export async function deleteExpenseAction(id: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -79,7 +79,7 @@ export async function deleteExpenseAction(id: string) {
 }
 
 export async function getCategoriesAction(): Promise<{ id: string; name: string; color: string }[]> {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
@@ -112,13 +112,20 @@ export async function getExpensesAction(filters?: {
   endDate?: Date;
   categoryId?: string;
 }) {
-  const { userId } = auth();
+  const { userId } = await auth();
   
   if (!userId) {
     return [];
   }
 
-  const where: Record<string, unknown> = {
+  const where: {
+    userId: string;
+    categoryId?: string;
+    date?: {
+      gte?: Date;
+      lte?: Date;
+    };
+  } = {
     userId,
   };
 
@@ -128,7 +135,7 @@ export async function getExpensesAction(filters?: {
     }
     
     if (filters.startDate || filters.endDate) {
-      where.date = {} as { gte?: Date; lte?: Date };
+      where.date = {};
       if (filters.startDate) {
         where.date.gte = filters.startDate;
       }

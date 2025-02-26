@@ -177,7 +177,16 @@ export async function getExpenses(filters?: {
     return [];
   }
 
-  const where: any = { userId };
+  type WhereClause = {
+    userId: string;
+    date?: {
+      gte: Date;
+      lte: Date;
+    };
+    categoryId?: string;
+  };
+
+  const where: WhereClause = { userId };
 
   if (filters?.startDate && filters?.endDate) {
     where.date = {

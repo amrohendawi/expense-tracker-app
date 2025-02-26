@@ -74,7 +74,7 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
             <div className="space-y-0.5">
               <Label htmlFor="budgetAlerts">Budget Alerts</Label>
               <div className="text-sm text-muted-foreground">
-                Get notified when you're approaching your budget limits
+                Get notified when you&apos;re approaching your budget limits
               </div>
             </div>
             <Switch 
