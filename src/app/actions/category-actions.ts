@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Category } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
-export async function createCategoryAction(data: Omit<Category, "id" | "userId" | "createdAt" | "updatedAt">) {
+export async function createCategoryAction(data: { name: string; color: string }) {
   const { userId } = auth();
   
   if (!userId) {
@@ -16,6 +16,7 @@ export async function createCategoryAction(data: Omit<Category, "id" | "userId" 
     data: {
       ...data,
       userId,
+      icon: null, // Set icon to null since we're not using it
     },
   });
 
@@ -24,7 +25,7 @@ export async function createCategoryAction(data: Omit<Category, "id" | "userId" 
   return category;
 }
 
-export async function updateCategoryAction(id: string, data: Partial<Omit<Category, "id" | "userId" | "createdAt" | "updatedAt">>) {
+export async function updateCategoryAction(id: string, data: { name: string; color: string }) {
   const { userId } = auth();
   
   if (!userId) {

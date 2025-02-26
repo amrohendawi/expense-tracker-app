@@ -45,6 +45,7 @@ export async function updateUserSettingsAction(settings: Partial<UserSettings>) 
 
   // In a real app, you'd update this in the database
   // For now, we'll just revalidate the path
+  console.log("Updating settings:", settings);
   revalidatePath("/dashboard/settings");
   
   return { success: true };

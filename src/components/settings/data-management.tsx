@@ -82,7 +82,8 @@ export function DataManagement() {
     const reader = new FileReader()
     reader.onload = async (event) => {
       try {
-        const jsonData = JSON.parse(event.target?.result as string)
+        // Parse the JSON data
+        JSON.parse(event.target?.result as string)
         // In a real implementation, you would validate and import the data
         // For now, we'll just show a success toast
         await new Promise(resolve => setTimeout(resolve, 500))

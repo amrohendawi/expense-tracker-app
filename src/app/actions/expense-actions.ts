@@ -78,23 +78,33 @@ export async function deleteExpenseAction(id: string) {
   return true;
 }
 
-export async function getCategoriesAction() {
+export async function getCategoriesAction(): Promise<{ id: string; name: string; color: string }[]> {
   const { userId } = auth();
   
   if (!userId) {
     return [];
   }
 
-  const categories = await prisma.category.findMany({
-    where: {
-      userId,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
-
-  return categories;
+  try {
+    const categories = await prisma.category.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+    
+    return categories;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return [];
+  }
 }
 
 export async function getExpensesAction(filters?: {
@@ -108,20 +118,24 @@ export async function getExpensesAction(filters?: {
     return [];
   }
 
-  const where: any = { userId };
+  const where: Record<string, unknown> = {
+    userId,
+  };
 
-  if (filters?.startDate || filters?.endDate) {
-    where.date = {};
-    if (filters.startDate) {
-      where.date.gte = filters.startDate;
+  if (filters) {
+    if (filters.categoryId) {
+      where.categoryId = filters.categoryId;
     }
-    if (filters.endDate) {
-      where.date.lte = filters.endDate;
+    
+    if (filters.startDate || filters.endDate) {
+      where.date = {} as { gte?: Date; lte?: Date };
+      if (filters.startDate) {
+        where.date.gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        where.date.lte = filters.endDate;
+      }
     }
-  }
-
-  if (filters?.categoryId) {
-    where.categoryId = filters.categoryId;
   }
 
   const expenses = await prisma.expense.findMany({

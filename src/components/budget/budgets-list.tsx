@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { Pencil, Trash2 } from "lucide-react"
 
@@ -27,16 +27,60 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { BudgetDialog } from "@/components/budget/budget-dialog"
-import { deleteBudgetAction } from "@/app/actions/budget-actions"
+import { deleteBudgetAction, getBudgetsAction } from "@/app/actions/budget-actions"
+import { getCategoriesAction } from "@/app/actions/expense-actions"
 
-export function BudgetsList({
-  budgets,
-  categories,
-}: {
-  budgets: any[]
-  categories: any[]
-}) {
+interface BudgetWithCategory {
+  id: string
+  categoryId: string
+  amount: number
+  startDate: Date
+  endDate: Date
+  description?: string | null
+  category: {
+    id: string
+    name: string
+  }
+}
+
+interface Category {
+  id: string
+  name: string
+}
+
+export function BudgetsList() {
+  const [budgets, setBudgets] = useState<BudgetWithCategory[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [budgetsData, categoriesData] = await Promise.all([
+          getBudgetsAction(),
+          getCategoriesAction(),
+        ])
+        const formattedBudgets = budgetsData.map(budget => ({
+          ...budget,
+          description: budget.description || ""
+        }))
+        setBudgets(formattedBudgets)
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error("Failed to fetch data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch data. Please try again later.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
@@ -60,6 +104,16 @@ export function BudgetsList({
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Loading...
+        </p>
+      </div>
+    )
   }
 
   if (budgets.length === 0) {

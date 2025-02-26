@@ -15,10 +15,9 @@ import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
+  SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
 } from "@/components/ui/sidebar"
 import { UserButton, useUser } from "@clerk/nextjs"
 

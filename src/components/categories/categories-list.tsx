@@ -61,19 +61,18 @@ export function CategoriesList({ categories }: CategoriesListProps) {
 
   return (
     <div className="relative w-full overflow-auto">
-      <Table>
+      <Table className="max-w-3xl mx-auto">
         <TableHeader>
           <TableRow>
-            <TableHead>Color</TableHead>
+            <TableHead className="w-16">Color</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Icon</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="w-24 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {categories.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={3} className="h-24 text-center">
                 No categories found.
               </TableCell>
             </TableRow>
@@ -82,13 +81,12 @@ export function CategoriesList({ categories }: CategoriesListProps) {
               <TableRow key={category.id}>
                 <TableCell>
                   <div
-                    className="h-6 w-6 rounded-full"
+                    className="h-6 w-6 rounded-full border"
                     style={{ backgroundColor: category.color }}
                   />
                 </TableCell>
                 <TableCell className="font-medium">{category.name}</TableCell>
-                <TableCell>{category.icon || "-"}</TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <CategoryDialog
                       category={category}

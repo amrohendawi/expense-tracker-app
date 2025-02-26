@@ -1,14 +1,6 @@
 "use client"
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-  TooltipProps,
-} from "recharts"
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { formatCurrency } from "@/lib/utils"
 
 interface CategoryData {
@@ -32,14 +24,16 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
     )
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: { 
+    active?: boolean; 
+    payload?: Array<{ name: string; value: number; payload: { name: string; amount: number; color: string } }> 
+  }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload as CategoryData
+      const data = payload[0].payload
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">
           <p className="font-medium">{data.name}</p>
-          <p className="text-primary">{formatCurrency(data.amount)}</p>
-          <p className="text-sm text-muted-foreground">{data.percentage?.toFixed(1) ?? '0.0'}%</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount)}</p>
         </div>
       )
     }
@@ -95,22 +89,29 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
             fill="#8884d8"
             dataKey="amount"
           >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+            {data.map((entry) => (
+              <Cell key={`cell-${entry.name}`} fill={entry.color} />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
-          <Legend
+          <Legend 
             layout="vertical"
             verticalAlign="middle"
             align="right"
-            formatter={(value, entry, index) => {
-              const { payload } = entry as any
-              return (
-                <span className="text-xs">
-                  {payload.name} ({payload.percentage?.toFixed(1) ?? '0.0'}%)
-                </span>
-              )
+            formatter={(value, entry) => {
+              // Safe type cast with checks
+              const payload = entry?.payload as unknown;
+              // Check if payload has the expected structure
+              if (payload && typeof payload === 'object' && 'name' in payload && 'percentage' in payload) {
+                const categoryData = payload as { name: string; percentage?: number };
+                return (
+                  <span className="text-xs">
+                    {categoryData.name} ({categoryData.percentage?.toFixed(1) ?? '0.0'}%)
+                  </span>
+                );
+              }
+              // Fallback
+              return <span className="text-xs">{value}</span>;
             }}
           />
         </PieChart>

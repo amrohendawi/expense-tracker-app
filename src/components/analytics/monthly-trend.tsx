@@ -1,6 +1,5 @@
 "use client"
 
-import { useMemo } from "react"
 import {
   LineChart,
   Line,
@@ -9,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  TooltipProps,
 } from "recharts"
 import { formatCurrency } from "@/lib/utils"
 
@@ -31,7 +29,7 @@ export function MonthlyTrend({ data }: MonthlyTrendProps) {
     )
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">

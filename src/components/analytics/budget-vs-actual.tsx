@@ -1,17 +1,6 @@
 "use client"
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  TooltipProps,
-  ReferenceLine,
-} from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { formatCurrency } from "@/lib/utils"
 
 interface BudgetData {
@@ -34,7 +23,10 @@ export function BudgetVsActual({ data }: BudgetVsActualProps) {
     )
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: { 
+    active?: boolean; 
+    payload?: Array<{ name: string; value: number; payload: { category: string; budget: number; actual: number } }> 
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">

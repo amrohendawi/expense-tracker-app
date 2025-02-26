@@ -1,12 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import DatePicker from "react-datepicker"
-import "react-datepicker/dist/react-datepicker.css"
+import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -35,9 +33,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { createExpenseAction, updateExpenseAction } from "@/app/actions/expense-actions"
-import { Expense } from "@prisma/client"
+import { Category } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -57,21 +55,26 @@ type ExpenseFormValues = z.infer<typeof formSchema>
 
 interface ExpenseDialogProps {
   children: React.ReactNode
-  expense?: Expense & { category: { name: string } }
-  categories?: { id: string; name: string }[]
+  expense?: {
+    id: string
+    title: string
+    amount: number
+    date: Date
+    categoryId: string
+    description?: string
+    category: Category
+  }
+  categories?: Category[]
   onSuccess?: () => void
 }
 
-export function ExpenseDialog({ 
-  children, 
-  expense, 
-  categories = [], 
-  onSuccess 
+export function ExpenseDialog({
+  children,
+  expense,
+  categories = [],
+  onSuccess,
 }: ExpenseDialogProps) {
   const [open, setOpen] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
-
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: expense
@@ -91,6 +94,10 @@ export function ExpenseDialog({
         },
   })
 
+  const {
+    formState: { errors },
+  } = form
+
   async function onSubmit(values: ExpenseFormValues) {
     try {
       if (expense) {
@@ -109,7 +116,6 @@ export function ExpenseDialog({
       
       setOpen(false)
       form.reset()
-      router.refresh()
       
       if (onSuccess) {
         onSuccess()
@@ -132,7 +138,7 @@ export function ExpenseDialog({
           <DialogTitle>{expense ? "Edit Expense" : "Add Expense"}</DialogTitle>
           <DialogDescription>
             {expense
-              ? "Edit your expense details below."
+              ? "Update the details of your existing expense."
               : "Add a new expense to your tracker."}
           </DialogDescription>
         </DialogHeader>
@@ -147,7 +153,7 @@ export function ExpenseDialog({
                   <FormControl>
                     <Input placeholder="Grocery shopping" {...field} />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage>{errors.title?.message}</FormMessage>
                 </FormItem>
               )}
             />
@@ -163,9 +169,10 @@ export function ExpenseDialog({
                       step="0.01"
                       placeholder="0.00"
                       {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage>{errors.amount?.message}</FormMessage>
                 </FormItem>
               )}
             />
@@ -176,14 +183,14 @@ export function ExpenseDialog({
                 <FormItem>
                   <FormLabel>Date</FormLabel>
                   <FormControl>
-                    <DatePicker
-                      selected={field.value}
-                      onChange={field.onChange}
-                      dateFormat="MMMM d, yyyy"
+                    <input
+                      type="date"
+                      value={format(field.value, "yyyy-MM-dd")}
+                      onChange={(e) => field.onChange(new Date(e.target.value))}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage>{errors.date?.message}</FormMessage>
                 </FormItem>
               )}
             />
@@ -199,13 +206,29 @@ export function ExpenseDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder="Select a category">
+                          {field.value && categories.find(c => c.id === field.value) && (
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="h-3 w-3 rounded-full border"
+                                style={{ backgroundColor: categories.find(c => c.id === field.value)?.color }}
+                              />
+                              {categories.find(c => c.id === field.value)?.name}
+                            </div>
+                          )}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
-                          {category.name}
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="h-3 w-3 rounded-full border"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
                         </SelectItem>
                       ))}
                       {categories.length === 0 && (
@@ -220,7 +243,7 @@ export function ExpenseDialog({
                       Manage categories
                     </a>
                   </div>
-                  <FormMessage />
+                  <FormMessage>{errors.categoryId?.message}</FormMessage>
                 </FormItem>
               )}
             />
@@ -236,7 +259,7 @@ export function ExpenseDialog({
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage>{errors.description?.message}</FormMessage>
                 </FormItem>
               )}
             />

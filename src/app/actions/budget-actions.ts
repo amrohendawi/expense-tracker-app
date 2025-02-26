@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
-import { Budget } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 export async function createBudgetAction(data: {

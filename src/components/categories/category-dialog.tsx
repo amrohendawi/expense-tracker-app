@@ -36,7 +36,6 @@ const formSchema = z.object({
   color: z.string().min(4, {
     message: "Please select a color.",
   }),
-  icon: z.string().optional(),
 })
 
 type CategoryFormValues = z.infer<typeof formSchema>
@@ -61,13 +60,11 @@ export function CategoryDialog({
     defaultValues: category
       ? {
           name: category.name,
-          color: category.color,
-          icon: category.icon || "",
+          color: category.color || "#3b82f6", 
         }
       : {
           name: "",
-          color: "#000000",
-          icon: "",
+          color: "#3b82f6", 
         },
   })
 
@@ -138,32 +135,25 @@ export function CategoryDialog({
                 <FormItem>
                   <FormLabel>Color</FormLabel>
                   <FormControl>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-3">
                       <Input
                         type="color"
-                        className="w-12 h-10 p-1"
+                        className="w-14 h-10 p-1 cursor-pointer"
                         {...field}
                       />
-                      <Input
-                        type="text"
-                        placeholder="#000000"
-                        value={field.value}
-                        onChange={field.onChange}
+                      <div className="flex-1">
+                        <Input
+                          type="text"
+                          placeholder="#000000"
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      </div>
+                      <div 
+                        className="h-8 w-8 rounded-full border"
+                        style={{ backgroundColor: field.value }}
                       />
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="icon"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Icon (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Icon name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

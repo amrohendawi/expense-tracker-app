@@ -4,9 +4,7 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
-
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -36,14 +34,8 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
-import { DatePicker } from "@/components/ui/date-picker"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
 import { createBudgetAction, updateBudgetAction } from "@/app/actions/budget-actions"
+import { Category } from "@prisma/client"
 
 const budgetFormSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
@@ -62,8 +54,16 @@ export function BudgetDialog({
   categories,
 }: {
   children: React.ReactNode
-  budget?: any
-  categories: any[]
+  budget?: {
+    id: string
+    categoryId: string
+    amount: number
+    startDate: Date
+    endDate: Date
+    description?: string
+    period?: string
+  }
+  categories: Category[]
 }) {
   const [open, setOpen] = useState(false)
 
@@ -116,11 +116,11 @@ export function BudgetDialog({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{budget ? "Edit Budget" : "Create Budget"}</DialogTitle>
+          <DialogTitle>{budget ? "Edit Budget" : "Add Budget"}</DialogTitle>
           <DialogDescription>
             {budget
-              ? "Make changes to your budget here."
-              : "Create a new budget for a category."}
+              ? "Update the details of your existing budget."
+              : "Add a new budget to track your spending."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -212,9 +212,10 @@ export function BudgetDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel>Start Date</FormLabel>
                     <FormControl>
-                      <DatePicker
-                        selected={field.value}
-                        onSelect={field.onChange}
+                      <input
+                        type="date"
+                        value={format(field.value, "yyyy-MM-dd")}
+                        onChange={(e) => field.onChange(new Date(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -228,9 +229,10 @@ export function BudgetDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel>End Date</FormLabel>
                     <FormControl>
-                      <DatePicker
-                        selected={field.value}
-                        onSelect={field.onChange}
+                      <input
+                        type="date"
+                        value={format(field.value, "yyyy-MM-dd")}
+                        onChange={(e) => field.onChange(new Date(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />

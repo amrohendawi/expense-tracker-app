@@ -22,7 +22,7 @@ import { AccountStatistics } from "@/components/settings/account-statistics"
 import { getUserSettingsAction } from "@/app/actions/settings-actions"
 
 export default async function SettingsPage() {
-  const { userId } = await auth();
+  await auth(); // Just to authenticate the user
   const userSettings = await getUserSettingsAction();
   
   return (

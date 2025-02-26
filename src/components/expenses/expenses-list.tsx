@@ -1,10 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Expense } from "@prisma/client"
 import { Edit, Trash2 } from "lucide-react"
-
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -25,58 +22,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { deleteExpenseAction, getCategoriesAction } from "@/app/actions/expense-actions"
 import { ExpenseDialog } from "./expense-dialog"
 import { Badge } from "@/components/ui/badge"
 
 interface ExpensesListProps {
-  expenses: (Expense & {
-    category: {
-      name: string
-      color: string
-    }
-  })[]
+  expenses: {
+    id: string
+    title: string
+    amount: number
+    date: Date
+    categoryId: string
+    description?: string
+    category: { id: string; name: string; color: string }
+  }[]
+  categories: { id: string; name: string; color: string }[]
+  onDelete: (id: string) => void
+  onEdit: (expense: {
+    id: string
+    title: string
+    amount: number
+    date: Date
+    categoryId: string
+    description?: string
+    category: { id: string; name: string; color: string }
+  }) => void
 }
 
-export function ExpensesList({ expenses }: ExpensesListProps) {
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
-  const [isLoading, setIsLoading] = useState<string | null>(null)
-  const router = useRouter()
-  const { toast } = useToast()
-
-  // Load categories when needed for the edit dialog
-  const loadCategories = async () => {
-    try {
-      const cats = await getCategoriesAction()
-      setCategories(cats)
-    } catch (error) {
-      console.error("Failed to load categories:", error)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      setIsLoading(id)
-      await deleteExpenseAction(id)
-      toast({
-        title: "Expense deleted",
-        description: "Your expense has been deleted successfully.",
-      })
-      router.refresh()
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Something went wrong",
-        description: "Please try again later.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(null)
-    }
-  }
-
+export function ExpensesList({
+  expenses,
+  categories,
+  onDelete,
+  onEdit,
+}: ExpensesListProps) {
   if (expenses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -102,7 +79,14 @@ export function ExpensesList({ expenses }: ExpensesListProps) {
             <TableRow key={expense.id}>
               <TableCell className="font-medium">{expense.title}</TableCell>
               <TableCell>
-                <Badge style={{ backgroundColor: expense.category.color }}>
+                <Badge 
+                  variant="outline"
+                  className="flex items-center gap-1.5 font-normal"
+                >
+                  <div 
+                    className="h-2.5 w-2.5 rounded-full" 
+                    style={{ backgroundColor: expense.category.color }}
+                  />
                   {expense.category.name}
                 </Badge>
               </TableCell>
@@ -115,13 +99,9 @@ export function ExpensesList({ expenses }: ExpensesListProps) {
                   <ExpenseDialog
                     expense={expense}
                     categories={categories}
-                    onSuccess={() => router.refresh()}
+                    onSuccess={() => onEdit(expense)}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={loadCategories}
-                    >
+                    <Button variant="ghost" size="icon">
                       <Edit className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
                     </Button>
@@ -143,11 +123,8 @@ export function ExpensesList({ expenses }: ExpensesListProps) {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(expense.id)}
-                          disabled={isLoading === expense.id}
-                        >
-                          {isLoading === expense.id ? "Deleting..." : "Delete"}
+                        <AlertDialogAction onClick={() => onDelete(expense.id)}>
+                          Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

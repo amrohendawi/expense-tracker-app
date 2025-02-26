@@ -16,13 +16,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { getCategoriesAction } from "@/app/actions/expense-actions"
-import { getBudgetsAction } from "@/app/actions/budget-actions"
 import { BudgetDialog } from "@/components/budget/budget-dialog"
 import { BudgetsList } from "@/components/budget/budgets-list"
 
 export default async function BudgetsPage() {
-  // Fetch data
-  const budgets = await getBudgetsAction();
+  // Fetch categories for the add budget dialog
   const categories = await getCategoriesAction();
   
   return (
@@ -63,7 +61,7 @@ export default async function BudgetsPage() {
               </p>
             </div>
             <Separator />
-            <BudgetsList budgets={budgets} categories={categories} />
+            <BudgetsList />
           </div>
         </div>
       </SidebarInset>

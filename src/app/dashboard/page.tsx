@@ -1,11 +1,10 @@
+import Link from "next/link"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -20,7 +19,6 @@ import { formatCurrency } from "@/lib/utils"
 import { getCategoriesAction, getExpensesAction } from "@/app/actions/expense-actions"
 import { getBudgetStatusAction } from "@/app/actions/budget-actions"
 import { getExpensesByCategoryAction } from "@/app/actions/analytics-actions"
-import { ExpensesList } from "@/components/expenses/expenses-list"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
 import { BudgetOverview } from "@/components/budget/budget-overview"
 import { SpendingChart } from "@/components/analytics/spending-chart"
@@ -199,7 +197,35 @@ export default async function DashboardPage() {
                 <CardTitle>Recent Expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                <ExpensesList expenses={latestExpenses} />
+                <div className="space-y-4">
+                  {latestExpenses.length > 0 ? (
+                    latestExpenses.map(expense => (
+                      <div key={expense.id} className="flex items-center justify-between border-b pb-2">
+                        <div>
+                          <div className="font-medium">{expense.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {expense.category?.name || 'Uncategorized'} • {new Date(expense.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="font-medium">
+                          ${expense.amount.toFixed(2)}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">No recent expenses found.</p>
+                    </div>
+                  )}
+                  
+                  {latestExpenses.length > 0 && (
+                    <div className="text-center pt-2">
+                      <Link href="/dashboard/expenses" className="text-sm text-blue-500 hover:underline">
+                        View all expenses
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -15,18 +15,12 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { getCategoriesAction, getExpensesAction } from "@/app/actions/expense-actions"
+import { getCategoriesAction } from "@/app/actions/expense-actions"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
-import { ExpensesList } from "@/components/expenses/expenses-list"
+import { ExpensesListWrapper } from "@/components/expenses/expenses-list-wrapper"
 
 export default async function ExpensesPage() {
-  // Get the current date
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
-  // Fetch data
-  const expenses = await getExpensesAction({ startDate: startOfMonth, endDate: endOfMonth });
+  // Fetch categories for the add expense dialog
   const categories = await getCategoriesAction();
   
   return (
@@ -67,7 +61,7 @@ export default async function ExpensesPage() {
               </p>
             </div>
             <Separator />
-            <ExpensesList expenses={expenses} categories={categories} />
+            <ExpensesListWrapper />
           </div>
         </div>
       </SidebarInset>

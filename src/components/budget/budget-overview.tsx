@@ -53,12 +53,12 @@ export function BudgetOverview({ budgetStatus }: BudgetOverviewProps) {
           <Progress
             value={item.percentage}
             className="h-2"
-            indicatorClassName={
+            indicatorColor={
               item.percentage >= 100
-                ? "bg-red-500"
+                ? "#ef4444" // red-500
                 : item.percentage >= 80
-                ? "bg-yellow-500"
-                : "bg-green-500"
+                ? "#eab308" // yellow-500
+                : "#22c55e" // green-500
             }
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
