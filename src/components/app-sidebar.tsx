@@ -19,7 +19,7 @@ import {
   SidebarContent,
   SidebarFooter,
 } from "@/components/ui/sidebar"
-import { UserButton, useUser } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUser();
@@ -77,9 +77,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               email: user.primaryEmailAddress?.emailAddress || '',
               image: user.imageUrl || '',
             }}
-          >
-            <UserButton afterSignOutUrl="/" />
-          </NavUser>
+          />
         )}
       </SidebarFooter>
     </Sidebar>

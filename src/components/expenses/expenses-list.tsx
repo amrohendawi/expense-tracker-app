@@ -32,7 +32,7 @@ interface ExpensesListProps {
     amount: number
     date: Date
     categoryId: string
-    description?: string
+    description?: string | null
     category: { id: string; name: string; color: string }
   }[]
   categories: { id: string; name: string; color: string }[]
@@ -43,7 +43,7 @@ interface ExpensesListProps {
     amount: number
     date: Date
     categoryId: string
-    description?: string
+    description?: string | null
     category: { id: string; name: string; color: string }
   }) => void
 }

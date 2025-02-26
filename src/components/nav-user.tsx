@@ -8,6 +8,8 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
+import { useClerk } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 
 import {
   Avatar,
@@ -42,6 +44,13 @@ export function NavUser({
   children?: React.ReactNode
 }) {
   const { isMobile } = useSidebar()
+  const clerk = useClerk()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await clerk.signOut()
+    router.push('/')
+  }
 
   return (
     <SidebarMenu>
@@ -104,7 +113,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <LogOut />
               Log out
             </DropdownMenuItem>

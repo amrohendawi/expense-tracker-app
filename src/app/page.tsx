@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -18,9 +18,12 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="px-4 lg:px-6 h-14 flex items-center">
-        <Link className="flex items-center justify-center" href="/">
-          <span className="font-bold text-xl">Smart Expense Tracker</span>
+      <header className="px-4 lg:px-6 h-16 flex items-center border-b">
+        <Link className="flex items-center justify-center gap-2" href="/">
+          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary">
+            <DollarSign className="h-4 w-4" />
+          </div>
+          <span className="font-bold text-xl">ExpenseTracker</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           <Link
@@ -44,10 +47,10 @@ export default function Home() {
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Take Control of Your Finances
+                    Simplify Your Finances with ExpenseTracker
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Smart Expense Tracker helps you monitor your expenses, set budgets, and make better financial decisions.
+                    ExpenseTracker is the ultimate personal finance management tool. Easily track your expenses, create budgets, and make informed financial decisions.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -200,7 +203,7 @@ export default function Home() {
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full border-t px-4 md:px-6">
         <p className="text-xs text-muted-foreground">
-          2025 Smart Expense Tracker. All rights reserved.
+          2025 ExpenseTracker. All rights reserved.
         </p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link className="text-xs hover:underline underline-offset-4" href="#">
