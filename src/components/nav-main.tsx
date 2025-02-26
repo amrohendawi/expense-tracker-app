@@ -27,14 +27,17 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel className="py-2 text-xs font-medium text-muted-foreground">Platform</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
             <Link href={item.url} passHref>
-              <SidebarMenuButton tooltip={item.title} className={item.isActive ? "bg-muted" : ""}>
-                {item.icon && <item.icon />}
-                <span>{item.title}</span>
+              <SidebarMenuButton 
+                tooltip={item.title} 
+                className={`${item.isActive ? "bg-muted font-medium" : ""} w-full justify-start`}
+              >
+                {item.icon && <item.icon className="h-4 w-4 mr-3" />}
+                <span className="flex-grow">{item.title}</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>

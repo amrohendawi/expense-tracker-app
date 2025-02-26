@@ -61,9 +61,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-4 py-2">
-          <DollarSign className="h-6 w-6" />
-          <span className="text-xl font-bold">ExpenseTracker</span>
+        <div className="flex items-center gap-2 px-4 py-3 border-b">
+          <DollarSign className="h-5 w-5 text-primary" />
+          <span className="text-lg font-semibold">ExpenseTracker</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

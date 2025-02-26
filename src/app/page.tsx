@@ -40,35 +40,35 @@ export default function Home() {
           </Link>
         </nav>
       </header>
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
-          <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+      <main className="flex-1 flex flex-col">
+        <section className="w-full flex-1 flex items-center py-8 md:py-12">
+          <div className="container px-4 md:px-6 mx-auto">
+            <div className="grid gap-6 lg:grid-cols-2 lg:gap-10 items-center">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
                     Simplify Your Finances with ExpenseTracker
                   </h1>
-                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
+                  <p className="text-muted-foreground text-lg md:text-xl max-w-[600px]">
                     ExpenseTracker is the ultimate personal finance management tool. Easily track your expenses, create budgets, and make informed financial decisions.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                <div className="flex flex-col gap-2 min-[400px]:flex-row pt-2">
                   <Link href={signUpUrl}>
-                    <Button size="lg">
+                    <Button size="lg" className="w-full min-[400px]:w-auto">
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
                   <Link href={signInUrl}>
-                    <Button size="lg" variant="outline">
+                    <Button size="lg" variant="outline" className="w-full min-[400px]:w-auto">
                       Sign In
                     </Button>
                   </Link>
                 </div>
               </div>
               <div className="flex items-center justify-center">
-                <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] md:h-[450px] md:w-[450px] lg:h-[500px] lg:w-[500px]">
+                <div className="relative w-full max-w-[500px] aspect-square">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 blur-3xl"></div>
                   <div className="relative bg-white dark:bg-gray-950 border rounded-xl shadow-lg p-6 h-full flex flex-col justify-between">
                     <div className="space-y-4">
@@ -120,16 +120,16 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-100 dark:bg-gray-900">
-          <div className="container px-4 md:px-6">
+        <section className="w-full py-12 md:py-16 bg-gray-50 dark:bg-gray-900">
+          <div className="container px-4 md:px-6 mx-auto">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-[800px]">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Key Features</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl">
+                <p className="text-muted-foreground md:text-lg">
                   Everything you need to manage your personal finances effectively.
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:gap-8">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:gap-8 pt-8">
                 <div className="flex flex-col items-center space-y-2 rounded-lg border p-6">
                   <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-3">
                     <svg
@@ -201,18 +201,28 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full border-t px-4 md:px-6">
-        <p className="text-xs text-muted-foreground">
-          2025 ExpenseTracker. All rights reserved.
-        </p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Terms of Service
-          </Link>
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Privacy
-          </Link>
-        </nav>
+      <footer className="py-6 border-t">
+        <div className="container px-4 md:px-6 mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary">
+                <DollarSign className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-medium"> 2025 ExpenseTracker. All rights reserved.</p>
+            </div>
+            <nav className="flex gap-4 sm:gap-6">
+              <Link className="text-sm hover:underline underline-offset-4" href="#">
+                Terms of Service
+              </Link>
+              <Link className="text-sm hover:underline underline-offset-4" href="#">
+                Privacy Policy
+              </Link>
+              <Link className="text-sm hover:underline underline-offset-4" href="#">
+                Contact
+              </Link>
+            </nav>
+          </div>
+        </div>
       </footer>
     </div>
   );

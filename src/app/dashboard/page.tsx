@@ -50,29 +50,26 @@ export default async function DashboardPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-            
-            <div className="ml-auto">
-              <ExpenseDialog categories={categories}>
-                <Button size="sm">
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add Expense
-                </Button>
-              </ExpenseDialog>
+        <header className="flex h-16 shrink-0 items-center border-b px-4 md:px-6">
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+              <Separator orientation="vertical" className="h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
+            
+            <ExpenseDialog categories={categories}>
+              <Button size="sm">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add Expense
+              </Button>
+            </ExpenseDialog>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
