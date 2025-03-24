@@ -14,6 +14,12 @@ A full-featured expense tracking application built with Next.js 15, Clerk authen
 - 🎨 Customizable expense categories
 - 💼 Budget management
 
+## Todos
+
+- [ ] Add scan your receipt feature
+- [ ] Fix currency selection not working issue
+- [ ] Add AI expense analysis and suggestions
+
 ## Tech Stack
 
 - **Framework**: Next.js 15.1.0
@@ -51,21 +57,13 @@ yarn install
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file in the root directory by copying the `.env.example` file:
 
-```env
-# Database
-POSTGRES_PRISMA_URL="postgresql://postgres:password@db.example.supabase.co:5432/postgres?pgbouncer=true"
-POSTGRES_URL="postgresql://postgres:password@db.example.supabase.co:5432/postgres"
-
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+```bash
+cp .env.example .env
 ```
+
+then, replace the values in the `.env` file with your own values.
 
 ### 4. Set up Clerk Authentication
 
@@ -92,7 +90,11 @@ npx prisma migrate reset
 npx prisma studio
 ```
 
-### 6. Run the development server
+### 6. OpenAI API Key
+
+Get your OpenAI API key from [OpenAI](https://platform.openai.com/api-keys), create an account and set up billing and budget to prevent unexpected charges. Add the key to your `.env` file.
+
+### 7. Run the development server
 
 ```bash
 npm run dev
