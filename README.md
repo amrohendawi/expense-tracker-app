@@ -104,6 +104,64 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Running with Docker
+
+You can also run the entire application stack using Docker Compose, which will set up:
+- The Next.js application
+- PostgreSQL database
+- Supabase services
+- Prisma migrations
+
+### Prerequisites for Docker
+
+- Docker and Docker Compose installed on your machine
+- Basic understanding of Docker concepts
+
+### Steps to run with Docker
+
+1. Make sure Docker is running on your machine
+
+2. Set up environment variables for Docker:
+   ```bash
+   cp .env.example .env.docker
+   ```
+   Edit the `.env.docker` file to include your Clerk and OpenAI API keys.
+
+3. Build and start the Docker containers:
+   ```bash
+   docker-compose up -d
+   ```
+   This will start all services in detached mode.
+
+4. Access the application:
+   - Next.js app: [http://localhost:3000](http://localhost:3000)
+   - Supabase Studio: [http://localhost:9000](http://localhost:9000)
+
+5. To stop the containers:
+   ```bash
+   docker-compose down
+   ```
+
+6. To view logs:
+   ```bash
+   docker-compose logs -f app
+   ```
+
+### Environment Variables for Docker
+
+When running with Docker, the database connection strings are automatically configured to connect to the PostgreSQL container. However, you still need to provide:
+
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key
+- `CLERK_SECRET_KEY`: Your Clerk secret key
+- `OPENAI_API_KEY`: Your OpenAI API key
+
+You can either:
+- Add them to your `.env.docker` file, or
+- Pass them as environment variables when running docker-compose:
+  ```bash
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key CLERK_SECRET_KEY=your_secret OPENAI_API_KEY=your_openai_key docker-compose up -d
+  ```
+
 ## Database Schema
 
 The application uses the following main models:
@@ -130,6 +188,15 @@ If you're experiencing authentication issues:
 1. Verify your Clerk API keys in the `.env` file
 2. Make sure the Clerk URLs are configured correctly
 3. Check that the middleware.ts file is properly set up
+
+### Docker Issues
+
+If you encounter issues with the Docker setup:
+
+1. Check container logs: `docker-compose logs -f`
+2. Ensure ports 3000, 5432, 8000, and 9000 are not in use by other applications
+3. Try rebuilding the containers: `docker-compose build --no-cache`
+4. Verify your Docker and Docker Compose versions are up to date
 
 ## Deployment
 
