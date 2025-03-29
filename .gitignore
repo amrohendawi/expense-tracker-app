@@ -19,6 +19,7 @@
 
 # production
 /build
+/public/uploads
 
 # misc
 .DS_Store
@@ -40,3 +41,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.vscode/launch.json

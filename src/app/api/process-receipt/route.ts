@@ -5,6 +5,12 @@ import OpenAI from "openai";
 import { auth } from "@clerk/nextjs/server";
 import { receiptDataSchema } from "@/lib/schemas/receipt-schema";
 import { prisma } from "@/lib/prisma";
+import { processPdfReceipt } from "@/lib/pdf-processor";
+import { processImageReceipt } from "@/lib/image-processor";
+import { writeFile } from "fs/promises";
+import { join } from "path";
+import { existsSync, mkdirSync } from "fs";
+import { v4 as uuidv4 } from "uuid";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -46,71 +52,35 @@ export async function POST(request: NextRequest) {
 
     const categoryNames = categories.map((cat) => cat.name);
 
-    // Convert the file to a base64 string
-    const bytes = await receiptFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = buffer.toString("base64");
-
-    // Create a system prompt for the OpenAI model
-    const systemPrompt = `
-      You are an expert at analyzing receipts and invoices. 
-      Extract the following information from the receipt image:
-      - title (a short descriptive name for the expense)
-      - amount (just the number in positive form, no currency symbol)
-      - date (in YYYY-MM-DD format)
-      - category (choose the most appropriate from this list: ${categoryNames.join(", ")})
-      - suggestedCategory (if none of the existing categories match well, suggest a new category name)
-      - vendor (the merchant or service provider)
-      - description (any additional details)
-      - currency (if identifiable, use the 3-letter code like USD, EUR, etc.)
-
-      Format your response as a valid JSON object with these fields.
-      Do not include any explanations, just the JSON.
-    `;
-
-    // Call OpenAI's Vision API to analyze the receipt
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract the information from this receipt according to the specified format.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-    });
-
-    // Extract the JSON response
-    const aiResponse = response.choices[0].message.content;
-    if (!aiResponse) {
+    let extractedData;
+    let receiptUrl;
+    
+    // Process the file based on its type
+    const isPdf = receiptFile.type === "application/pdf";
+    const isImage = receiptFile.type.startsWith("image/");
+    
+    if (!isPdf && !isImage) {
       return NextResponse.json(
-        { error: "Failed to extract information from receipt" },
-        { status: 500 }
+        { error: "Unsupported file type. Please upload an image or PDF file." },
+        { status: 400 }
       );
     }
-
-    // Parse the JSON response
+    
     try {
-      // Extract the JSON part from the response
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : aiResponse;
-
-      const extractedData = JSON.parse(jsonString);
+      // Process the file using the appropriate processor based on file type
+      let result;
+      
+      if (isPdf) {
+        // Use the PDF processor for PDF files
+        result = await processPdfReceipt(receiptFile, categoryNames);
+      } else {
+        // Use the image processor for image files
+        result = await processImageReceipt(receiptFile, categoryNames);
+      }
+      
+      // Extract data and receipt URL from the result
+      extractedData = result.data;
+      receiptUrl = result.filePath;
 
       // Convert amount to number if it's a string
       if (typeof extractedData.amount === "string") {
@@ -161,24 +131,27 @@ export async function POST(request: NextRequest) {
         extractedData.category = extractedData.suggestedCategory;
       }
 
-      // Add categoryId to the extracted data
+      // Add categoryId and receiptUrl to the extracted data
       if (categoryId) {
         extractedData.categoryId = categoryId;
       }
+      
+      // Add the file path to the extracted data
+      extractedData.receiptUrl = receiptUrl;
 
       // Validate the data against our schema
       const validatedData = receiptDataSchema.parse(extractedData);
 
       return NextResponse.json({ data: validatedData }, { status: 200 });
     } catch (error) {
-      console.error("Error parsing AI response:", error);
+      console.error("Error processing receipt:", error);
       return NextResponse.json(
-        { error: "Failed to parse receipt data", aiResponse },
-        { status: 422 }
+        { error: "Failed to process receipt" },
+        { status: 500 }
       );
     }
   } catch (error) {
-    console.error("Error processing receipt:", error);
+    console.error("Error in process-receipt API:", error);
     return NextResponse.json(
       { error: "Failed to process receipt" },
       { status: 500 }
