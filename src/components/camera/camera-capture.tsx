@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, FlipHorizontal, X, Check } from "lucide-react";
+import { Camera, FlipHorizontal, X, Check, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraCaptureProps {
@@ -13,7 +13,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -26,8 +26,8 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       const constraints = {
         video: { 
           facingMode: isFrontCamera ? "user" : "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 1080 },
+          height: { ideal: 1920 }
         },
         audio: false
       };
@@ -59,6 +59,20 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     startCamera();
   };
 
+  const toggleFullScreen = () => {
+    // If we're already in full screen, stop and restart camera when switching back
+    if (isFullScreen) {
+      stopCamera();
+      setTimeout(() => {
+        setIsFullScreen(false);
+        startCamera();
+      }, 100);
+    } else {
+      // Going to full screen
+      setIsFullScreen(true);
+    }
+  };
+
   const captureImage = () => {
     if (!videoRef.current || !isStreaming) return;
     
@@ -83,9 +97,8 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], "receipt-capture.jpg", { type: "image/jpeg" });
-          setCapturedFile(file);
           // Pass both dataURL and File to the parent component
-          // onCapture(dataUrl, file); - We'll now wait for explicit confirmation
+          onCapture(dataUrl, file);
         }
       }, "image/jpeg", 0.95);
     }
@@ -93,7 +106,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
 
   const retakeImage = () => {
     setCapturedImage(null);
-    setCapturedFile(null);
     startCamera();
   };
 
@@ -105,31 +117,82 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     return () => {
       stopCamera();
     };
-  }, [startCamera, isFrontCamera]);
+  }, [startCamera]);
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="flex justify-between items-center p-4 bg-black text-white">
-        <Button
-          onClick={onCancel}
-          size="sm"
-          variant="ghost"
-          className="text-white hover:bg-white/20"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-        <div className="font-medium">Capture Receipt</div>
-        <Button
-          onClick={toggleCamera}
-          size="sm"
-          variant="ghost"
-          className="text-white hover:bg-white/20"
-        >
-          <FlipHorizontal className="h-5 w-5" />
-        </Button>
+  // If fullscreen is enabled, use the fullscreen layout
+  if (isFullScreen) {
+    return (
+      <div className="absolute inset-0 z-[100] bg-black flex flex-col">
+        <div className="w-full flex justify-between items-center p-4 bg-black text-white">
+          <Button
+            onClick={toggleFullScreen}
+            size="sm"
+            variant="ghost"
+            className="text-white hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <div className="font-medium">Capture Receipt</div>
+          <Button
+            onClick={toggleCamera}
+            size="sm"
+            variant="ghost"
+            className="text-white hover:bg-white/20"
+          >
+            <FlipHorizontal className="h-5 w-5" />
+          </Button>
+        </div>
+        
+        <div className="flex-1 relative bg-black overflow-hidden">
+          {!capturedImage ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute bottom-10 inset-x-0 flex justify-center space-x-4 z-10">
+                <Button
+                  onClick={captureImage}
+                  size="icon"
+                  variant="secondary"
+                  className="rounded-full h-16 w-16 bg-white hover:bg-gray-100"
+                >
+                  <Camera className="h-8 w-8 text-black" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img
+                src={capturedImage}
+                alt="Captured receipt"
+                className="max-h-full max-w-full object-contain"
+              />
+              <div className="absolute bottom-10 inset-x-0 flex justify-center space-x-6 z-10">
+                <Button
+                  onClick={retakeImage}
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full border-white text-white hover:bg-white/20"
+                >
+                  <X className="h-5 w-5 mr-2" />
+                  Retake
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      
-      <div className="relative flex-grow w-full h-full">
+    );
+  }
+
+  // Regular square-shaped view
+  return (
+    <div className="flex flex-col items-center w-full max-w-md mx-auto pb-4">
+      <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-[3/4]">
         {!capturedImage ? (
           <>
             <video
@@ -137,16 +200,34 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
               autoPlay
               playsInline
               muted
-              className="absolute inset-0 w-full h-full object-cover"
+              className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-8 inset-x-0 flex justify-center space-x-4">
+            <div className="absolute bottom-4 inset-x-0 flex justify-center space-x-4">
               <Button
                 onClick={captureImage}
                 size="icon"
                 variant="secondary"
-                className="rounded-full h-16 w-16 bg-white hover:bg-gray-100"
+                className="rounded-full h-14 w-14 bg-white hover:bg-gray-100"
               >
-                <Camera className="h-8 w-8 text-black" />
+                <Camera className="h-6 w-6 text-black" />
+              </Button>
+            </div>
+            <div className="absolute top-4 right-4 flex space-x-2">
+              <Button
+                onClick={toggleFullScreen}
+                size="icon"
+                variant="ghost"
+                className="bg-black/30 hover:bg-black/50 text-white rounded-full"
+              >
+                <Maximize2 className="h-5 w-5" />
+              </Button>
+              <Button
+                onClick={toggleCamera}
+                size="icon"
+                variant="ghost"
+                className="bg-black/30 hover:bg-black/50 text-white rounded-full"
+              >
+                <FlipHorizontal className="h-5 w-5" />
               </Button>
             </div>
           </>
@@ -155,34 +236,35 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
             <img
               src={capturedImage}
               alt="Captured receipt"
-              className="absolute inset-0 w-full h-full object-contain bg-black"
+              className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-8 inset-x-0 flex justify-center space-x-6">
+            <div className="absolute bottom-4 inset-x-0 flex justify-center space-x-4">
               <Button
                 onClick={retakeImage}
-                size="lg"
-                variant="outline"
-                className="rounded-full border-white text-white hover:bg-white/20"
-              >
-                <X className="h-5 w-5 mr-2" />
-                Retake
-              </Button>
-              <Button
-                onClick={() => {
-                  if (capturedImage && capturedFile) {
-                    onCapture(capturedImage, capturedFile);
-                  }
-                }}
-                size="lg"
-                variant="default"
+                size="icon"
+                variant="destructive"
                 className="rounded-full"
               >
-                <Check className="h-5 w-5 mr-2" />
-                Use Photo
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                onClick={() => {}}
+                size="icon"
+                variant="default"
+                className="rounded-full"
+                disabled
+              >
+                <Check className="h-5 w-5" />
               </Button>
             </div>
           </div>
         )}
+      </div>
+      
+      <div className="mt-4 w-full">
+        <Button onClick={onCancel} variant="outline" className="w-full">
+          Cancel
+        </Button>
       </div>
     </div>
   );
