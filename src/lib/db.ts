@@ -2,6 +2,27 @@ import { prisma } from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { Category, Expense, Budget } from "@prisma/client";
 
+// --- Prisma Connection Check ---
+console.log(
+  "[db.ts] Checking POSTGRES_PRISMA_URL:",
+  process.env.POSTGRES_PRISMA_URL ? "Set" : "Not Set or Undefined"
+);
+
+(async () => {
+  try {
+    console.log("[db.ts] Attempting to connect to database...");
+    await prisma.$connect();
+    console.log("[db.ts] Database connection successful.");
+  } catch (error) {
+    console.error("[db.ts] Database connection failed:", error);
+  } finally {
+    // We don't necessarily want to disconnect immediately in a serverless env,
+    // as the connection might be reused.
+    // await prisma.$disconnect();
+  }
+})();
+// --- End Prisma Connection Check ---
+
 // User
 export async function getCurrentUser() {
   const { userId } = auth();
@@ -25,6 +46,12 @@ export async function createUserIfNotExists() {
   if (!userId) {
     return null;
   }
+
+  // Add log before upsert
+  console.log(
+    "[db.ts] Checking POSTGRES_PRISMA_URL before user upsert:",
+    process.env.POSTGRES_PRISMA_URL ? "Set" : "Not Set"
+  );
 
   // Use clerkClient instead of getUser
   const user = userId ? await clerkClient.users.getUser(userId) : null;
@@ -176,6 +203,12 @@ export async function getExpenses(filters?: {
   if (!userId) {
     return [];
   }
+
+  // Add log before findMany
+  console.log(
+    "[db.ts] Checking POSTGRES_PRISMA_URL in getExpenses:",
+    process.env.POSTGRES_PRISMA_URL ? "Set" : "Not Set"
+  );
 
   type WhereClause = {
     userId: string;
