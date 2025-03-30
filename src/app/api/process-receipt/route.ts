@@ -139,6 +139,29 @@ export async function POST(request: NextRequest) {
       // Add the file path to the extracted data
       extractedData.receiptUrl = receiptUrl;
 
+      // Handle date formatting - ensure it's in YYYY-MM-DD format or null
+      if (extractedData.date) {
+        try {
+          // Try to parse and format the date
+          const dateObj = new Date(extractedData.date);
+          // Check if date is valid
+          if (!isNaN(dateObj.getTime())) {
+            // Format as YYYY-MM-DD
+            extractedData.date = dateObj.toISOString().split('T')[0];
+          } else {
+            // Invalid date - set to null
+            extractedData.date = null;
+          }
+        } catch (error) {
+          // If any error in parsing, set to null
+          console.log("Error parsing date:", error);
+          extractedData.date = null;
+        }
+      } else {
+        // If no date, set to null explicitly
+        extractedData.date = null;
+      }
+
       // Validate the data against our schema
       const validatedData = receiptDataSchema.parse(extractedData);
 

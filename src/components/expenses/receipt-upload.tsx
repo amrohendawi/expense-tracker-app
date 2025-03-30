@@ -1,11 +1,10 @@
-"use client";
-
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, Loader2, Check } from "lucide-react";
+import { Upload, X, Loader2, Check, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
 import { ReceiptData } from "@/lib/schemas/receipt-schema";
+import { CameraCapture } from "@/components/camera/camera-capture";
 
 interface ReceiptUploadProps {
   onReceiptProcessed: (data: ReceiptData) => void;
@@ -17,6 +16,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,6 +147,26 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
     }
   }, []);
 
+  const handleCameraCapture = useCallback((imageData: string, imageFile: File) => {
+    setShowCamera(false);
+    setPreview(imageData);
+    setFile(imageFile);
+  }, []);
+
+  const handleCameraCancel = useCallback(() => {
+    setShowCamera(false);
+  }, []);
+
+  // If camera is shown, render the camera capture component
+  if (showCamera) {
+    return (
+      <CameraCapture 
+        onCapture={handleCameraCapture} 
+        onCancel={handleCameraCancel} 
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div 
@@ -166,15 +186,35 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={handleFileChange}
             />
-            <Upload className="mb-2 h-8 w-8 text-gray-400" />
-            <label
-              htmlFor="receipt-upload"
-              className="cursor-pointer text-sm font-medium text-blue-500 hover:text-blue-600"
-            >
-              Upload receipt or invoice
-            </label>
-            <p className="mt-1 text-xs text-gray-500">
-              Drag & drop or click to upload (JPEG, PNG, WebP or PDF, max 10MB)
+            <div className="flex space-x-4">
+              {/* Camera button */}
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowCamera(true)}
+                className="flex items-center space-x-2"
+              >
+                <Camera className="h-4 w-4" />
+                <span>Take Photo</span>
+              </Button>
+              
+              {/* Upload button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById("receipt-upload")?.click()}
+                className="flex items-center space-x-2"
+              >
+                <Upload className="h-4 w-4" />
+                <span>Upload File</span>
+              </Button>
+            </div>
+            
+            <p className="text-sm text-gray-500 mt-2">
+              or drag and drop your receipt here
+            </p>
+            <p className="text-xs text-gray-500">
+              Supported formats: JPEG, PNG, WebP, PDF (max 10MB)
             </p>
           </>
         ) : (

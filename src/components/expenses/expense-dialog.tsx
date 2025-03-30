@@ -116,9 +116,12 @@ export function ExpenseDialog({
 
   async function onSubmit(values: ExpenseFormValues) {
     try {
-      // Ensure description is null if it's undefined
+      // Ensure all values are properly formatted for submission
       const formattedValues = {
-        ...values,
+        title: values.title,
+        amount: values.amount,
+        date: values.date,
+        categoryId: values.categoryId,
         description: values.description || null,
         receiptUrl: receiptUrl || null,
       };
@@ -185,6 +188,13 @@ export function ExpenseDialog({
     } else if (data.vendor) {
       // Use vendor as description if no description is provided
       form.setValue("description", `Vendor: ${data.vendor}`);
+    }
+    
+    // Save the receipt URL to state so it can be included in form submission
+    if (data.receiptUrl) {
+      setReceiptUrl(data.receiptUrl);
+      form.setValue("receiptUrl", data.receiptUrl);
+      console.log("Receipt URL set:", data.receiptUrl);
     }
 
     // Switch to manual tab to review and edit the extracted data
