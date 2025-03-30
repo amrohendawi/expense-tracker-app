@@ -14,17 +14,22 @@ const globalForPrisma = globalThis as unknown as {
 
 // Create a singleton for PrismaClient with proper logging and connection handling
 const prismaClientSingleton = () => {
-  return new PrismaClient({
+  // Configure the PrismaClient with appropriate options
+  const options: any = {
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    
-    // Add datasource connection options to handle serverless environment better
-    // These are specifically to address the prepared statement issues
-    datasources: {
+  };
+  
+  // Only add datasource configuration if DATABASE_URL is defined
+  // This prevents build errors with "undefined" datasource
+  if (process.env.DATABASE_URL) {
+    options.datasources = {
       db: {
         url: process.env.DATABASE_URL,
       },
-    },
-  }).$extends({
+    };
+  }
+  
+  const client = new PrismaClient(options).$extends({
     // Add query extensions to handle connection issues in serverless environments
     query: {
       $allOperations({ operation, model, args, query }) {
@@ -48,6 +53,8 @@ const prismaClientSingleton = () => {
       },
     },
   });
+  
+  return client;
 };
 
 // Use a generic try-catch method to handle database operations with retries
