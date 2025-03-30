@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, FlipHorizontal, X, Check, Maximize2 } from "lucide-react";
+import { Camera, FlipHorizontal, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraCaptureProps {
@@ -13,7 +13,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -23,6 +22,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
+      // Use a more natural aspect ratio with vertical orientation
       const constraints = {
         video: { 
           facingMode: isFrontCamera ? "user" : "environment",
@@ -59,25 +59,13 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     startCamera();
   };
 
-  const toggleFullScreen = () => {
-    // If we're already in full screen, stop and restart camera when switching back
-    if (isFullScreen) {
-      stopCamera();
-      setTimeout(() => {
-        setIsFullScreen(false);
-        startCamera();
-      }, 100);
-    } else {
-      // Going to full screen
-      setIsFullScreen(true);
-    }
-  };
-
   const captureImage = () => {
     if (!videoRef.current || !isStreaming) return;
     
     const canvas = document.createElement("canvas");
     const video = videoRef.current;
+    
+    // Ensure canvas matches the video dimensions exactly
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
@@ -119,80 +107,10 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     };
   }, [startCamera]);
 
-  // If fullscreen is enabled, use the fullscreen layout
-  if (isFullScreen) {
-    return (
-      <div className="absolute inset-0 z-[100] bg-black flex flex-col">
-        <div className="w-full flex justify-between items-center p-4 bg-black text-white">
-          <Button
-            onClick={toggleFullScreen}
-            size="sm"
-            variant="ghost"
-            className="text-white hover:bg-white/20"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-          <div className="font-medium">Capture Receipt</div>
-          <Button
-            onClick={toggleCamera}
-            size="sm"
-            variant="ghost"
-            className="text-white hover:bg-white/20"
-          >
-            <FlipHorizontal className="h-5 w-5" />
-          </Button>
-        </div>
-        
-        <div className="flex-1 relative bg-black overflow-hidden">
-          {!capturedImage ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute bottom-10 inset-x-0 flex justify-center space-x-4 z-10">
-                <Button
-                  onClick={captureImage}
-                  size="icon"
-                  variant="secondary"
-                  className="rounded-full h-16 w-16 bg-white hover:bg-gray-100"
-                >
-                  <Camera className="h-8 w-8 text-black" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <img
-                src={capturedImage}
-                alt="Captured receipt"
-                className="max-h-full max-w-full object-contain"
-              />
-              <div className="absolute bottom-10 inset-x-0 flex justify-center space-x-6 z-10">
-                <Button
-                  onClick={retakeImage}
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full border-white text-white hover:bg-white/20"
-                >
-                  <X className="h-5 w-5 mr-2" />
-                  Retake
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Regular square-shaped view
+  // Regular camera view
   return (
     <div className="flex flex-col items-center w-full max-w-md mx-auto pb-4">
-      <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-[3/4]">
+      <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-[9/16]">
         {!capturedImage ? (
           <>
             <video
@@ -213,14 +131,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
               </Button>
             </div>
             <div className="absolute top-4 right-4 flex space-x-2">
-              <Button
-                onClick={toggleFullScreen}
-                size="icon"
-                variant="ghost"
-                className="bg-black/30 hover:bg-black/50 text-white rounded-full"
-              >
-                <Maximize2 className="h-5 w-5" />
-              </Button>
               <Button
                 onClick={toggleCamera}
                 size="icon"
