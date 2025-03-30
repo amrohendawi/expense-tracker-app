@@ -1,21 +1,11 @@
 "use server";
 
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { auth } from "@clerk/nextjs/server";
 import { receiptDataSchema } from "@/lib/schemas/receipt-schema";
 import { prisma } from "@/lib/prisma";
 import { processPdfReceipt } from "@/lib/pdf-processor";
 import { processImageReceipt } from "@/lib/image-processor";
-import { writeFile } from "fs/promises";
-import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
-import { v4 as uuidv4 } from "uuid";
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(request: NextRequest) {
   try {
