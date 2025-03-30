@@ -13,6 +13,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -82,8 +83,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], "receipt-capture.jpg", { type: "image/jpeg" });
+          setCapturedFile(file);
           // Pass both dataURL and File to the parent component
-          onCapture(dataUrl, file);
+          // onCapture(dataUrl, file); - We'll now wait for explicit confirmation
         }
       }, "image/jpeg", 0.95);
     }
@@ -91,6 +93,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
 
   const retakeImage = () => {
     setCapturedImage(null);
+    setCapturedFile(null);
     startCamera();
   };
 
@@ -102,11 +105,31 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     return () => {
       stopCamera();
     };
-  }, [startCamera]);
+  }, [startCamera, isFrontCamera]);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-md mx-auto">
-      <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-[4/3]">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="flex justify-between items-center p-4 bg-black text-white">
+        <Button
+          onClick={onCancel}
+          size="sm"
+          variant="ghost"
+          className="text-white hover:bg-white/20"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+        <div className="font-medium">Capture Receipt</div>
+        <Button
+          onClick={toggleCamera}
+          size="sm"
+          variant="ghost"
+          className="text-white hover:bg-white/20"
+        >
+          <FlipHorizontal className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      <div className="relative flex-grow w-full h-full">
         {!capturedImage ? (
           <>
             <video
@@ -114,26 +137,16 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute bottom-4 inset-x-0 flex justify-center space-x-4">
+            <div className="absolute bottom-8 inset-x-0 flex justify-center space-x-4">
               <Button
                 onClick={captureImage}
                 size="icon"
                 variant="secondary"
-                className="rounded-full h-14 w-14 bg-white hover:bg-gray-100"
+                className="rounded-full h-16 w-16 bg-white hover:bg-gray-100"
               >
-                <Camera className="h-6 w-6 text-black" />
-              </Button>
-            </div>
-            <div className="absolute top-4 right-4">
-              <Button
-                onClick={toggleCamera}
-                size="icon"
-                variant="ghost"
-                className="bg-black/30 hover:bg-black/50 text-white rounded-full"
-              >
-                <FlipHorizontal className="h-5 w-5" />
+                <Camera className="h-8 w-8 text-black" />
               </Button>
             </div>
           </>
@@ -142,35 +155,34 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
             <img
               src={capturedImage}
               alt="Captured receipt"
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain bg-black"
             />
-            <div className="absolute bottom-4 inset-x-0 flex justify-center space-x-4">
+            <div className="absolute bottom-8 inset-x-0 flex justify-center space-x-6">
               <Button
                 onClick={retakeImage}
-                size="icon"
-                variant="destructive"
-                className="rounded-full"
+                size="lg"
+                variant="outline"
+                className="rounded-full border-white text-white hover:bg-white/20"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5 mr-2" />
+                Retake
               </Button>
               <Button
-                onClick={() => {}}
-                size="icon"
+                onClick={() => {
+                  if (capturedImage && capturedFile) {
+                    onCapture(capturedImage, capturedFile);
+                  }
+                }}
+                size="lg"
                 variant="default"
                 className="rounded-full"
-                disabled
               >
-                <Check className="h-5 w-5" />
+                <Check className="h-5 w-5 mr-2" />
+                Use Photo
               </Button>
             </div>
           </div>
         )}
-      </div>
-      
-      <div className="mt-4 w-full">
-        <Button onClick={onCancel} variant="outline" className="w-full">
-          Cancel
-        </Button>
       </div>
     </div>
   );
