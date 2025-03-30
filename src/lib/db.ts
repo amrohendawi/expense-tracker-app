@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma, withRetry } from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { Category, Expense, Budget } from "@prisma/client";
 
@@ -10,87 +10,130 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-  });
-
-  return user;
+  try {
+    return await withRetry(async () => {
+      return await prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+    });
+  } catch (error) {
+    console.log("[getCurrentUser] Error:", 
+      error instanceof Error ? error.message : String(error));
+    return null;
+  }
 }
 
 export async function createUserIfNotExists() {
-  const { userId } = auth();
-  
-  if (!userId) {
+  try {
+    const { userId } = auth();
+    
+    if (!userId) {
+      console.log("[createUserIfNotExists] No userId from auth()");
+      return null;
+    }
+
+    // Use clerkClient instead of getUser
+    let user;
+    try {
+      user = await clerkClient.users.getUser(userId);
+    } catch (clerkError) {
+      console.log("[createUserIfNotExists] Clerk API error:", String(clerkError));
+      return null;
+    }
+    
+    if (!user) {
+      console.log("[createUserIfNotExists] No user data returned from Clerk");
+      return null;
+    }
+
+    // Log user data shape to identify what might be missing
+    console.log("[createUserIfNotExists] User data from Clerk:", {
+      id: userId,
+      hasEmailAddresses: user.emailAddresses?.length > 0,
+      emailAddress: user.emailAddresses?.[0]?.emailAddress || null,
+      firstName: user.firstName || null,
+      lastName: user.lastName || null,
+      imageUrl: user.imageUrl || null
+    });
+
+    // Create the user data payload with null checks
+    const email = user.emailAddresses?.[0]?.emailAddress || "user@example.com";
+    const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User";
+    const image = user.imageUrl || "";
+
+    // Use the withRetry helper to handle database operations
+    const existingUser = await withRetry(async () => {
+      return await prisma.user.findUnique({
+        where: { id: userId }
+      });
+    });
+    
+    let upsertedUser;
+    if (existingUser) {
+      // Update existing user with retry logic
+      upsertedUser = await withRetry(async () => {
+        return await prisma.user.update({
+          where: { id: userId },
+          data: { email, name, image }
+        });
+      });
+    } else {
+      // Create new user with retry logic
+      upsertedUser = await withRetry(async () => {
+        return await prisma.user.create({
+          data: { id: userId, email, name, image }
+        });
+      });
+    }
+
+    // Create default categories
+    const defaultCategories = [
+      { name: "Food", color: "#FF5733", icon: "utensils" },
+      { name: "Transportation", color: "#33A8FF", icon: "car" },
+      { name: "Entertainment", color: "#FF33E9", icon: "film" },
+      { name: "Shopping", color: "#33FF57", icon: "shopping-bag" },
+      { name: "Housing", color: "#8333FF", icon: "home" },
+      { name: "Utilities", color: "#FF8333", icon: "bolt" },
+      { name: "Healthcare", color: "#33FFC1", icon: "hospital" },
+      { name: "Personal", color: "#C133FF", icon: "user" },
+      { name: "Education", color: "#33FFF6", icon: "graduation-cap" },
+      { name: "Other", color: "#BEBEBE", icon: "ellipsis-h" },
+    ];
+
+    // Create default categories with retry logic
+    await Promise.all(
+      defaultCategories.map(category => 
+        withRetry(async () => {
+          return await prisma.category.upsert({
+            where: {
+              name_userId: {
+                name: category.name,
+                userId,
+              },
+            },
+            update: {
+              color: category.color,
+              icon: category.icon,
+            },
+            create: {
+              ...category,
+              userId,
+            },
+          });
+        })
+      )
+    );
+
+    return upsertedUser;
+  } catch (error) {
+    // Use String() to safely convert the error to a string for logging
+    // and avoid the "payload" argument issue
+    console.log("[createUserIfNotExists] Error creating user:", 
+      error instanceof Error ? error.message : String(error));
     return null;
   }
-
-  // Use clerkClient instead of getUser
-  const user = userId ? await clerkClient.users.getUser(userId) : null;
-  
-  if (!user) {
-    return null;
-  }
-
-  // Use upsert instead of checking and creating separately
-  const upsertedUser = await prisma.user.upsert({
-    where: {
-      id: userId,
-    },
-    update: {
-      email: user.emailAddresses[0]?.emailAddress || "",
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-      image: user.imageUrl || "",
-    },
-    create: {
-      id: userId,
-      email: user.emailAddresses[0]?.emailAddress || "",
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-      image: user.imageUrl || "",
-    },
-  });
-
-  // Create default categories
-  const defaultCategories = [
-    { name: "Food", color: "#FF5733", icon: "utensils" },
-    { name: "Transportation", color: "#33A8FF", icon: "car" },
-    { name: "Entertainment", color: "#FF33E9", icon: "film" },
-    { name: "Shopping", color: "#33FF57", icon: "shopping-bag" },
-    { name: "Housing", color: "#8333FF", icon: "home" },
-    { name: "Utilities", color: "#FF8333", icon: "bolt" },
-    { name: "Healthcare", color: "#33FFC1", icon: "hospital" },
-    { name: "Personal", color: "#C133FF", icon: "user" },
-    { name: "Education", color: "#33FFF6", icon: "graduation-cap" },
-    { name: "Other", color: "#BEBEBE", icon: "ellipsis-h" },
-  ];
-
-  // Use Promise.all to run all upserts in parallel
-  await Promise.all(
-    defaultCategories.map(category => 
-      prisma.category.upsert({
-        where: {
-          // Create a unique identifier based on name and userId
-          name_userId: {
-            name: category.name,
-            userId,
-          },
-        },
-        update: {
-          // If it exists, update the color and icon
-          color: category.color,
-          icon: category.icon,
-        },
-        create: {
-          // If it doesn't exist, create it
-          ...category,
-          userId,
-        },
-      })
-    )
-  );
-
-  return upsertedUser;
 }
 
 // Categories

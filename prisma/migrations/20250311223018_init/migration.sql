@@ -19,6 +19,7 @@ CREATE TABLE "Expense" (
     "date" TIMESTAMP(3) NOT NULL,
     "categoryId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "receiptUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
