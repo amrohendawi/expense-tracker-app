@@ -12,10 +12,41 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Create a simple singleton for PrismaClient with proper logging
+// Create a singleton for PrismaClient with proper logging and connection handling
 const prismaClientSingleton = () => {
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    
+    // Add datasource connection options to handle serverless environment better
+    // These are specifically to address the prepared statement issues
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+  }).$extends({
+    // Add query extensions to handle connection issues in serverless environments
+    query: {
+      $allOperations({ operation, model, args, query }) {
+        return query(args).catch(async (err: any) => {
+          // Check if the error is related to prepared statements
+          if (
+            err.message?.includes('prepared statement') || 
+            err.message?.includes('bind message supplies') ||
+            err.message?.includes('connection')
+          ) {
+            console.log(`Retrying ${model}.${operation} due to connection issue`);
+            
+            // Small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Retry the operation once
+            return query(args);
+          }
+          throw err;
+        });
+      },
+    },
   });
 };
 
@@ -33,6 +64,7 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promis
       
       // Only retry on connection-related errors
       if (errorMsg.includes('prepared statement') || 
+          errorMsg.includes('bind message') ||
           errorMsg.includes('connection')) {
         retries++;
         // Wait before retrying (exponential backoff)
@@ -49,6 +81,43 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promis
   throw lastError;
 }
 
-export const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
+// Create or reuse the Prisma client instance
+const prismaWithRetry = globalForPrisma.prisma ?? prismaClientSingleton();
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Clean up the Prisma client during hot reloads in development
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prismaWithRetry;
+}
+
+// Wrap the Prisma client with a proxy that applies the retry logic to all methods
+export const prisma = new Proxy(prismaWithRetry, {
+  get(target, prop) {
+    const value = Reflect.get(target, prop);
+    
+    // If the property is a function, wrap it with retry logic
+    if (typeof value === 'function') {
+      return (...args: any[]) => {
+        return withRetry(() => value.apply(target, args));
+      };
+    }
+    
+    // For model properties (user, expense, etc.), return a proxy that wraps their methods
+    if (typeof value === 'object' && value !== null) {
+      return new Proxy(value, {
+        get(modelTarget, modelProp) {
+          const modelMethod = Reflect.get(modelTarget, modelProp);
+          
+          if (typeof modelMethod === 'function') {
+            return (...args: any[]) => {
+              return withRetry(() => modelMethod.apply(modelTarget, args));
+            };
+          }
+          
+          return modelMethod;
+        },
+      });
+    }
+    
+    return value;
+  },
+});
