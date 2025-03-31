@@ -92,7 +92,7 @@ export function generateReceiptPrompt(options: {
   const baseInstructions = `
     - title (a short descriptive name for the expense)
     - amount (just the number in positive form, no currency symbol)
-    - date (in YYYY-MM-DD format, must not be later than today's date: ${today}. If you can't find a valid date or you're unsure, leave this field empty)
+    - date (in YYYY-MM-DD format. If you can't find a valid date or you're unsure, leave this field set to none)
     - category (choose the most appropriate from this list: ${categories.join(", ")})
     - suggestedCategory (if none of the existing categories match well, suggest a new category name)
     - vendor (the merchant or service provider)
@@ -101,8 +101,6 @@ export function generateReceiptPrompt(options: {
     
     Format your response as a valid JSON object with these fields.
     Do not include any explanations, just the JSON.
-    
-    IMPORTANT: If the date appears to be in the future or you're not confident about the date, leave the date field empty so the user can enter it manually.
   `;
   
   // Generate the appropriate introduction based on input type
@@ -136,37 +134,4 @@ export function getImageReceiptPrompt(categories: string[]): string {
     inputType: 'image', 
     categories 
   });
-}
-
-/**
- * Common AI processing function for both image and text
- */
-export async function processAIInput(input: ReceiptInputType, categories: string[]): Promise<ReceiptExtractionResult> {
-  let aiResponse: string;
-  let prompt: string;
-
-  if (input.type === 'text') {
-    prompt = getReceiptPrompt(input.text, categories);
-  } else if (input.type === 'image') {
-    prompt = getImageReceiptPrompt(categories);
-  } else {
-    throw new Error('Invalid input type');
-  }
-
-  // Call the AI model with the prompt (this is a placeholder, you need to implement the actual AI call)
-  aiResponse = await callAIModel(prompt);
-
-  const extractedData = parseAIResponse(aiResponse);
-  const formattedData = formatReceiptData(extractedData);
-
-  return {
-    data: formattedData,
-    filePath: '', // You need to implement the logic to get the file path
-  };
-}
-
-// Placeholder function for calling the AI model
-async function callAIModel(prompt: string): Promise<string> {
-  // Implement the actual AI call here
-  return '';
 }
