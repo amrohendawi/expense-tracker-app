@@ -92,7 +92,7 @@ export function generateReceiptPrompt(options: {
   const baseInstructions = `
     - title (a short descriptive name for the expense)
     - amount (just the number in positive form, no currency symbol)
-    - date (in YYYY-MM-DD format. If you can't find a valid date or you're unsure, leave this field set to none)
+    - date (in YYYY-MM-DD format. If no date is found in the receipt, leave this field set to none)
     - category (choose the most appropriate from this list: ${categories.join(", ")})
     - suggestedCategory (if none of the existing categories match well, suggest a new category name)
     - vendor (the merchant or service provider)
