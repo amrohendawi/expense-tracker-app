@@ -1,10 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, X, Loader2, Check, Camera } from "lucide-react";
+import { Upload, X, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
 import { ReceiptData } from "@/lib/schemas/receipt-schema";
-import { CameraCapture } from "@/components/camera/camera-capture";
 
 interface ReceiptUploadProps {
   onReceiptProcessed: (data: ReceiptData) => void;
@@ -16,7 +15,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,26 +179,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
     }
   }, []);
 
-  const handleCameraCapture = useCallback((imageData: string, imageFile: File) => {
-    setShowCamera(false);
-    setPreview(imageData);
-    setFile(imageFile);
-  }, []);
-
-  const handleCameraCancel = useCallback(() => {
-    setShowCamera(false);
-  }, []);
-
-  // If camera is shown, render the camera capture component
-  if (showCamera) {
-    return (
-      <CameraCapture 
-        onCapture={handleCameraCapture} 
-        onCancel={handleCameraCancel} 
-      />
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div 
@@ -219,20 +197,10 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
               className="hidden"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={handleFileChange}
+              capture="environment" // Enables camera on mobile devices
             />
-            <div className="flex space-x-4">
-              {/* Camera button */}
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setShowCamera(true)}
-                className="flex items-center space-x-2"
-              >
-                <Camera className="h-4 w-4" />
-                <span>Take Photo</span>
-              </Button>
-              
-              {/* Upload button */}
+            <div className="flex items-center justify-center">
+              {/* Upload/Camera button */}
               <Button
                 type="button"
                 variant="outline"
@@ -240,7 +208,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
                 className="flex items-center space-x-2"
               >
                 <Upload className="h-4 w-4" />
-                <span>Upload File</span>
+                <span>Upload or Take Photo</span>
               </Button>
             </div>
             
