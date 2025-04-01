@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, X, Loader2, Check, Camera } from "lucide-react";
+import { Upload, X, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
@@ -17,7 +17,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -191,17 +190,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
               onChange={handleFileChange}
             />
 
-            <input
-              ref={cameraInputRef}
-              type="file"
-              id="camera-upload"
-              className="hidden"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleFileChange}
-              capture="environment"
-            />
-
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center">
               <Button
                 type="button"
                 variant="outline"
@@ -210,16 +199,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
               >
                 <Upload className="h-4 w-4" />
                 <span>Choose File</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex items-center space-x-2"
-              >
-                <Camera className="h-4 w-4" />
-                <span>Take Photo</span>
               </Button>
             </div>
 

@@ -16,7 +16,7 @@ export async function processImageReceipt(
 ): Promise<ReceiptExtractionResult> {
   try {
     // Read the image file and save it to temp directory
-    const { tempFilePath, virtualFilePath } = await saveReceiptFile(file, 'receipt-img');
+    const { virtualFilePath } = await saveReceiptFile(file, 'receipt-img');
     
     // Get file buffer for OpenAI processing
     const bytes = await file.arrayBuffer();
