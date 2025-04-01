@@ -1,35 +1,77 @@
+"use client"
+
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, DollarSign, TrendingUp, Wallet } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, convertCurrency, convertExpensesToCurrency } from "@/lib/utils";
 import { getCategoriesAction, getExpensesAction } from "@/app/actions/expense-actions";
 import { getBudgetStatusAction } from "@/app/actions/budget-actions";
 import { getExpensesByCategoryAction } from "@/app/actions/analytics-actions";
 import { BudgetOverview } from "@/components/budget/budget-overview";
 import { SpendingChart } from "@/components/analytics/spending-chart";
 import { CategoryDistribution } from "@/components/analytics/category-distribution";
+import { useCurrency } from "@/context/currency-context";
+import { useEffect, useState } from "react";
 
-export async function DashboardContent({
+export function DashboardContent({
   startDate,
-  endDate
+  endDate,
+  initialExpenses,
+  initialBudgetStatus,
+  initialCategoryData
 }: {
   startDate: Date;
   endDate: Date;
+  initialExpenses: any[];
+  initialBudgetStatus: any[];
+  initialCategoryData: any[];
 }) {
-  // Fetch data based on selected date range
-  const expenses = await getExpensesAction({ startDate, endDate });
-  const budgetStatus = await getBudgetStatusAction();
-  const categoryData = await getExpensesByCategoryAction(startDate, endDate);
+  const { currency } = useCurrency();
+  const [expenses, setExpenses] = useState(initialExpenses);
+  const [budgetStatus, setBudgetStatus] = useState(initialBudgetStatus);
+  const [categoryData, setCategoryData] = useState(initialCategoryData);
   
-  // Calculate totals
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const totalBudget = budgetStatus.reduce((sum, budget) => sum + budget.budget.amount, 0);
+  // Convert the expenses to the user's currency and calculate totals
+  const totalExpenses = convertExpensesToCurrency(expenses, currency);
+  
+  // Convert budgets to user's currency
+  const totalBudget = budgetStatus.reduce((sum, budget) => {
+    return sum + convertCurrency(budget.budget.amount, budget.budget.currency || "USD", currency);
+  }, 0);
+  
   const totalRemaining = totalBudget - totalExpenses;
   
   // Get latest expenses (most recent 5)
   const latestExpenses = [...expenses].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   ).slice(0, 5);
+
+  // Prepare normalized data for charts with converted currencies
+  useEffect(() => {
+    // Convert category data to user's selected currency
+    const convertedCategoryData = initialCategoryData.map(cat => {
+      const convertedAmount = cat.expenses?.reduce((sum: number, exp: any) => {
+        const expCurrency = exp.currency || "USD";
+        return sum + convertCurrency(exp.amount, expCurrency, currency);
+      }, 0) || cat.amount;
+      
+      return {
+        ...cat,
+        amount: convertedAmount
+      };
+    });
+    
+    // Calculate total for percentages
+    const totalAmount = convertedCategoryData.reduce((sum, cat) => sum + cat.amount, 0);
+    
+    // Add percentages
+    const finalCategoryData = convertedCategoryData.map(cat => ({
+      ...cat,
+      percentage: totalAmount > 0 ? (cat.amount / totalAmount) * 100 : 0
+    }));
+    
+    setCategoryData(finalCategoryData);
+  }, [initialCategoryData, currency]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -43,7 +85,7 @@ export async function DashboardContent({
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, currency)}</div>
             <p className="text-xs text-muted-foreground">
               {startDate.toLocaleString('default', { month: 'long' })} {startDate.getFullYear()}
             </p>
@@ -58,7 +100,7 @@ export async function DashboardContent({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalBudget)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalBudget, currency)}</div>
             <p className="text-xs text-muted-foreground">
               Monthly Budget
             </p>
@@ -74,7 +116,7 @@ export async function DashboardContent({
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalRemaining < 0 ? 'text-red-500' : ''}`}>
-              {formatCurrency(totalRemaining)}
+              {formatCurrency(totalRemaining, currency)}
             </div>
             <div className="flex items-center pt-1">
               {totalRemaining < 0 ? (
@@ -124,7 +166,7 @@ export async function DashboardContent({
             <CardTitle>Spending Over Time</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <SpendingChart expenses={expenses} />
+            <SpendingChart expenses={expenses} convertToCurrency={currency} />
           </CardContent>
         </Card>
         
@@ -145,7 +187,7 @@ export async function DashboardContent({
             <CardTitle>Budget Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <BudgetOverview budgetStatus={budgetStatus} />
+            <BudgetOverview budgetStatus={budgetStatus} targetCurrency={currency} />
           </CardContent>
         </Card>
         
@@ -165,7 +207,7 @@ export async function DashboardContent({
                       </div>
                     </div>
                     <div className="font-medium">
-                      ${expense.amount.toFixed(2)}
+                      {formatCurrency(expense.amount, expense.currency || currency)}
                     </div>
                   </div>
                 ))

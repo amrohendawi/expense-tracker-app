@@ -83,11 +83,24 @@ npx prisma generate
 # Push the schema to your database
 npx prisma db push
 
-# If you need to reset your database during development
+# If you need to reset your database during development (DO NOT DO IT IN PRODUCTION!!!!)
 npx prisma migrate reset
 
 # To view your database with Prisma Studio
 npx prisma studio
+```
+
+during development and altering the prisma DB schema it's best advised to use the following commands:
+
+```bash
+# create migration 
+npx prisma migrate dev --name <migration_name>
+
+# apply migration
+npx prisma migrate deploy
+
+# generate prisma client
+npx prisma generate
 ```
 
 ### 6. OpenAI API Key

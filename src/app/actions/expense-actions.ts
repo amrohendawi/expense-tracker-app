@@ -24,7 +24,7 @@ export async function clerkAuth() {
   }
 }
 
-export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">) {
+export async function createExpenseAction(formData: any) {
   const { userId } = await clerkAuth();
   
   if (!userId) {
@@ -33,8 +33,17 @@ export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | 
 
   const expense = await prisma.expense.create({
     data: {
-      ...data,
+      title: formData.title,
+      amount: formData.amount,
+      currency: formData.currency || "USD", // Add currency handling
+      date: formData.date,
+      description: formData.description,
+      categoryId: formData.categoryId,
+      receiptUrl: formData.receiptUrl,
       userId,
+    },
+    include: {
+      category: true,
     },
   });
 
@@ -42,7 +51,7 @@ export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | 
   return expense;
 }
 
-export async function updateExpenseAction(id: string, data: Partial<Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">>) {
+export async function updateExpenseAction(id: string, formData: any) {
   const { userId } = await clerkAuth();
   
   if (!userId) {
@@ -56,14 +65,25 @@ export async function updateExpenseAction(id: string, data: Partial<Omit<Expense
   });
 
   if (!expense || expense.userId !== userId) {
-    throw new Error("Unauthorized");
+    throw new Error("Unauthorized or expense not found");
   }
 
   const updatedExpense = await prisma.expense.update({
     where: {
       id,
     },
-    data,
+    data: {
+      title: formData.title,
+      amount: formData.amount,
+      currency: formData.currency || "USD", // Add currency handling
+      date: formData.date,
+      description: formData.description,
+      categoryId: formData.categoryId,
+      receiptUrl: formData.receiptUrl,
+    },
+    include: {
+      category: true,
+    },
   });
 
   revalidatePath("/dashboard");

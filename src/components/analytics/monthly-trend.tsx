@@ -9,19 +9,30 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, convertCurrency } from "@/lib/utils"
+import { useMemo } from "react"
 
 interface MonthlyData {
   name: string
   amount: number
+  currency?: string
 }
 
 interface MonthlyTrendProps {
   data: MonthlyData[]
+  currency?: string
 }
 
-export function MonthlyTrend({ data }: MonthlyTrendProps) {
-  if (data.length === 0) {
+export function MonthlyTrend({ data, currency = "USD" }: MonthlyTrendProps) {
+  // Convert amounts to the target currency
+  const convertedData = useMemo(() => {
+    return data.map(item => ({
+      ...item,
+      amount: convertCurrency(item.amount, item.currency || "USD", currency)
+    }));
+  }, [data, currency]);
+
+  if (convertedData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[300px] text-center">
         <p className="text-muted-foreground">No monthly data available.</p>
@@ -44,7 +55,7 @@ export function MonthlyTrend({ data }: MonthlyTrendProps) {
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">
           <p className="font-medium">{payload[0].payload.name}</p>
-          <p className="text-primary">{formatCurrency(payload[0].value as number)}</p>
+          <p className="text-primary">{formatCurrency(payload[0].value as number, currency)}</p>
         </div>
       )
     }
@@ -52,13 +63,13 @@ export function MonthlyTrend({ data }: MonthlyTrendProps) {
   }
 
   // Find max value for better chart scaling
-  const maxValue = Math.max(...data.map(item => item.amount)) * 1.2
+  const maxValue = Math.max(...convertedData.map(item => item.amount)) * 1.2
 
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
-          data={data}
+          data={convertedData}
           margin={{
             top: 20,
             right: 30,
@@ -73,7 +84,7 @@ export function MonthlyTrend({ data }: MonthlyTrendProps) {
             tickLine={false}
           />
           <YAxis 
-            tickFormatter={(value) => `$${value}`} 
+            tickFormatter={(value) => formatCurrency(value, currency).split('.')[0]} 
             tick={{ fontSize: 12 }} 
             tickLine={false}
             axisLine={false}

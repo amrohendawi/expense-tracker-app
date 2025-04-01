@@ -1,6 +1,6 @@
 "use client"
 
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, convertCurrency } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { 
   TrendingUp, 
@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useMemo } from "react"
 
 interface ExpenseTrendsProps {
   trends: {
@@ -22,11 +23,34 @@ interface ExpenseTrendsProps {
     averagePerDay: number
     mostExpensiveDay: { day: string; amount: number }
     mostExpensiveCategory: { name: string; amount: number }
+    thisCurrency?: string
+    lastCurrency?: string
   }
   startDate: Date
+  currency?: string
 }
 
-export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
+export function ExpenseTrends({ trends, startDate, currency = "USD" }: ExpenseTrendsProps) {
+  // Convert all amounts to the selected currency
+  const convertedTrends = useMemo(() => {
+    if (!trends) return null;
+    
+    return {
+      ...trends,
+      totalThisMonth: convertCurrency(trends.totalThisMonth, trends.thisCurrency || "USD", currency),
+      totalLastMonth: convertCurrency(trends.totalLastMonth, trends.lastCurrency || "USD", currency),
+      averagePerDay: convertCurrency(trends.averagePerDay, trends.thisCurrency || "USD", currency),
+      mostExpensiveDay: {
+        day: trends.mostExpensiveDay?.day || "",
+        amount: convertCurrency(trends.mostExpensiveDay?.amount || 0, trends.thisCurrency || "USD", currency)
+      },
+      mostExpensiveCategory: {
+        name: trends.mostExpensiveCategory?.name || "",
+        amount: convertCurrency(trends.mostExpensiveCategory?.amount || 0, trends.thisCurrency || "USD", currency)
+      }
+    };
+  }, [trends, currency]);
+
   // Add fallback in case startDate is undefined
   const actualStartDate = startDate || new Date();
   
@@ -38,7 +62,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
     averagePerDay = 0,
     mostExpensiveDay = { day: '', amount: 0 },
     mostExpensiveCategory = { name: '', amount: 0 },
-  } = trends || {}
+  } = convertedTrends || {};
 
   const isIncrease = percentChange > 0
   
@@ -75,7 +99,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
                     {selectedMonth} vs {previousMonth}
                   </p>
                   <h3 className="text-2xl font-bold mt-1">
-                    {formatCurrency(0)}
+                    {formatCurrency(0, currency)}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     No data available
@@ -96,7 +120,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
                     Average Daily Spending
                   </p>
                   <h3 className="text-2xl font-bold mt-1">
-                    {formatCurrency(0)}
+                    {formatCurrency(0, currency)}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     No data for {selectedMonth}
@@ -144,7 +168,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
                 {selectedMonth} vs {previousMonth}
               </p>
               <h3 className="text-2xl font-bold mt-1">
-                {formatCurrency(totalThisMonth)}
+                {formatCurrency(totalThisMonth, currency)}
               </h3>
               <div className="flex items-center mt-1">
                 <span className={`flex items-center text-sm ${isIncrease ? 'text-destructive' : 'text-green-500'}`}>
@@ -161,7 +185,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
                   )}
                 </span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  vs {formatCurrency(totalLastMonth)}
+                  vs {formatCurrency(totalLastMonth, currency)}
                 </span>
               </div>
             </div>
@@ -184,7 +208,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
                 Average Daily Spending
               </p>
               <h3 className="text-2xl font-bold mt-1">
-                {formatCurrency(averagePerDay)}
+                {formatCurrency(averagePerDay, currency)}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 Per day in {selectedMonth} {selectedYear}
@@ -209,7 +233,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {mostExpensiveDay.amount ? 
-                  `${formatCurrency(mostExpensiveDay.amount)} in ${selectedMonth}` : 
+                  `${formatCurrency(mostExpensiveDay.amount, currency)} in ${selectedMonth}` : 
                   "No data for this period"}
               </p>
             </div>
@@ -232,7 +256,7 @@ export function ExpenseTrends({ trends, startDate }: ExpenseTrendsProps) {
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {mostExpensiveCategory.amount ? 
-                  `${formatCurrency(mostExpensiveCategory.amount)} in ${selectedMonth}` : 
+                  `${formatCurrency(mostExpensiveCategory.amount, currency)} in ${selectedMonth}` : 
                   "No data for this period"}
               </p>
             </div>

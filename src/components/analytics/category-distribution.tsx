@@ -1,44 +1,51 @@
-"use client"
+"use client";
 
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { formatCurrency } from "@/lib/utils"
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/context/currency-context";
 
 interface CategoryData {
-  id: string
-  name: string
-  color: string
-  amount: number
-  percentage: number
+  id: string;
+  name: string;
+  color: string;
+  amount: number;
+  percentage: number;
 }
 
 interface CategoryDistributionProps {
-  data: CategoryData[]
+  data: CategoryData[];
 }
 
 export function CategoryDistribution({ data }: CategoryDistributionProps) {
-  if (data.length === 0) {
+  const { currency } = useCurrency();
+
+  // Ensure we have data for the chart
+  const chartData = data?.length > 0 ? data : [];
+
+  if (chartData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[300px] text-center">
         <p className="text-muted-foreground">No category data available.</p>
       </div>
-    )
+    );
   }
 
   const CustomTooltip = ({ active, payload }: { 
     active?: boolean; 
-    payload?: Array<{ name: string; value: number; payload: { name: string; amount: number; color: string } }> 
+    payload?: Array<{ name: string; value: number; payload: { name: string; amount: number; color: string; percentage: number } }> 
   }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload
+      const data = payload[0].payload;
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">
           <p className="font-medium">{data.name}</p>
-          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount)}</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount, currency)}</p>
+          <p className="text-xs text-muted-foreground">{data.percentage}% of total</p>
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   const renderCustomizedLabel = ({
     cx,
@@ -48,17 +55,17 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
     outerRadius,
     percent,
   }: {
-    cx: number
-    cy: number
-    midAngle: number
-    innerRadius: number
-    outerRadius: number
-    percent: number
+    cx: number;
+    cy: number;
+    midAngle: number;
+    innerRadius: number;
+    outerRadius: number;
+    percent: number;
   }) => {
-    const RADIAN = Math.PI / 180
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-    const x = cx + radius * Math.cos(-midAngle * RADIAN)
-    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     return percent > 0.05 ? (
       <text
@@ -72,15 +79,15 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
-    ) : null
-  }
+    ) : null;
+  };
 
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={chartData}
             cx="50%"
             cy="50%"
             labelLine={false}
@@ -89,7 +96,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
             fill="#8884d8"
             dataKey="amount"
           >
-            {data.map((entry) => (
+            {chartData.map((entry) => (
               <Cell key={`cell-${entry.name}`} fill={entry.color} />
             ))}
           </Pie>
@@ -117,5 +124,5 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
         </PieChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }

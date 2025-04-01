@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { updateUserSettingsAction, type UserSettings } from "@/app/actions/settings-actions"
+import { useCurrency } from "@/context/currency-context";
 
 interface PreferencesFormProps {
   initialSettings: UserSettings
@@ -18,6 +19,7 @@ export function PreferencesForm({ initialSettings }: PreferencesFormProps) {
   const [settings, setSettings] = useState<UserSettings>(initialSettings)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const { setCurrency } = useCurrency();
   
   const handleChange = (key: keyof UserSettings, value: string | boolean | number) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -28,14 +30,15 @@ export function PreferencesForm({ initialSettings }: PreferencesFormProps) {
     try {
       setIsSubmitting(true)
       await updateUserSettingsAction(settings)
+      setCurrency(settings.currency); // Update currency context after saving
       toast({
         title: "Settings saved",
-        description: "Your preferences have been saved successfully",
+        description: "Your preferences have been updated.",
       })
     } catch (error) {
       toast({
-        title: "Save failed",
-        description: "Failed to save settings",
+        title: "Error",
+        description: "Failed to save settings.",
         variant: "destructive",
       })
       console.error(error)

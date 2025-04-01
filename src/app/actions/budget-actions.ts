@@ -3,9 +3,11 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { convertCurrency } from "@/lib/utils" // Use the existing currency converter
 
 export async function createBudgetAction(data: {
   amount: number;
+  currency: string;  // Add currency
   categoryId: string;
   startDate: Date;
   endDate: Date;
@@ -36,6 +38,7 @@ export async function updateBudgetAction({
 }: {
   id: string;
   amount?: number;
+  currency?: string;  // Add currency
   categoryId?: string;
   startDate?: Date;
   endDate?: Date;
@@ -133,6 +136,16 @@ export async function getBudgetStatusAction() {
   const budgets = await prisma.budget.findMany({
     where: {
       userId,
+      // Ensure we only get active budgets for current period
+      OR: [
+        { 
+          startDate: { lte: endOfMonth },
+          endDate: { gte: startOfMonth }
+        },
+        {
+          period: "monthly"  // Always include monthly budgets
+        }
+      ]
     },
     include: {
       category: true,
@@ -150,29 +163,40 @@ export async function getBudgetStatusAction() {
     },
   });
 
+  // Debug logs
+  console.log(`Found ${expenses.length} expenses for current month`);
+  console.log(`Found ${budgets.length} active budgets`);
+
   // Calculate spent amount for each budget
   const budgetStatus = budgets.map(budget => {
-    const spent = expenses
-      .filter(expense => {
-        // If budget is for a specific category, only include expenses for that category
-        if (budget.categoryId) {
-          return expense.categoryId === budget.categoryId;
-        }
-        // If budget is for all categories, include all expenses
-        return true;
-      })
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    // Filter expenses by this budget's category
+    const categoryExpenses = expenses.filter(exp => exp.categoryId === budget.categoryId);
+    
+    console.log(`Budget ${budget.category.name}: ${categoryExpenses.length} expenses found`);
+    
+    // Convert expenses to budget's currency
+    const spent = categoryExpenses.reduce((sum, expense) => {
+      const expenseCurrency = expense.currency || "USD";
+      const budgetCurrency = budget.currency || "USD";
+      
+      // Convert expense amount to budget currency
+      const convertedAmount = convertCurrency(expense.amount, expenseCurrency, budgetCurrency);
+      return sum + convertedAmount;
+    }, 0);
 
     const remaining = budget.amount - spent;
-    const percentage = (spent / budget.amount) * 100;
+    const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
     return {
-      category: budget.category,
       budget: {
         id: budget.id,
-        amount: budget.amount
+        amount: budget.amount,
+        currency: budget.currency || "USD",
+        period: budget.period,
+        category: budget.category,
       },
       spent,
+      spentCurrency: budget.currency || "USD",
       remaining,
       percentage,
     };

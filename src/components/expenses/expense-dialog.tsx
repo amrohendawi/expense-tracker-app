@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
+import { useCurrency } from "@/context/currency-context";
 
 // Define a simplified category type that matches what's returned from getCategoriesAction
 type CategoryWithBasicInfo = {
@@ -53,6 +54,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({
     message: "Amount must be a positive number.",
   }),
+  currency: z.string().default("USD"),
   date: z.date(),
   categoryId: z.string().min(1, {
     message: "Please select a category.",
@@ -79,12 +81,14 @@ export function ExpenseDialog({
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(expenseToEdit ? "manual" : "receipt");
   const [receiptUrl, setReceiptUrl] = useState<string | null>(expenseToEdit?.receiptUrl || null);
+  const { currency: userPreferredCurrency } = useCurrency();
   
   // Set default values based on whether we're editing or creating
   const defaultValues: Partial<ExpenseFormValues> = expenseToEdit
     ? {
         title: expenseToEdit.title,
         amount: expenseToEdit.amount,
+        currency: expenseToEdit.currency || userPreferredCurrency,
         date: new Date(expenseToEdit.date),
         categoryId: expenseToEdit.categoryId,
         description: expenseToEdit.description || "",
@@ -93,6 +97,7 @@ export function ExpenseDialog({
     : {
         title: "",
         amount: 0,
+        currency: userPreferredCurrency,
         date: new Date(),
         categoryId: "",
         description: "",
@@ -174,6 +179,7 @@ export function ExpenseDialog({
       const formattedValues = {
         title: values.title,
         amount: values.amount,
+        currency: values.currency,
         date: values.date,
         categoryId: values.categoryId,
         description: values.description || null,
@@ -254,25 +260,56 @@ export function ExpenseDialog({
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage>{errors.amount?.message}</FormMessage>
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage>{errors.amount?.message}</FormMessage>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage>{errors.currency?.message}</FormMessage>
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 
                 <FormField
                   control={form.control}

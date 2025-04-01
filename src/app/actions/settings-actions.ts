@@ -22,9 +22,11 @@ export async function getUserSettingsAction(): Promise<UserSettings> {
     throw new Error("Unauthorized");
   }
 
-  // In a real app, you'd fetch this from a settings table in the database
-  // For now, we'll return default settings
-  return {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+  });
+
+  return settings || {
     currency: "USD",
     language: "English",
     theme: "#10b981",
@@ -43,12 +45,50 @@ export async function updateUserSettingsAction(settings: Partial<UserSettings>) 
     throw new Error("Unauthorized");
   }
 
-  // In a real app, you'd update this in the database
-  // For now, we'll just revalidate the path
-  console.log("Updating settings:", settings);
-  revalidatePath("/dashboard/settings");
-  
-  return { success: true };
+  // Extract only fields that are in the Prisma schema
+  const {
+    currency,
+    language,
+    theme,
+    autoSave,
+    emailNotifications,
+    budgetAlerts,
+    weeklySummary,
+    darkMode
+  } = settings;
+
+  try {
+    const updatedSettings = await prisma.userSettings.upsert({
+      where: { userId },
+      create: { 
+        userId, 
+        currency, 
+        language, 
+        theme,
+        autoSave,
+        emailNotifications,
+        budgetAlerts,
+        weeklySummary,
+        darkMode
+      },
+      update: { 
+        currency, 
+        language, 
+        theme,
+        autoSave,
+        emailNotifications,
+        budgetAlerts,
+        weeklySummary,
+        darkMode
+      },
+    });
+    
+    revalidatePath("/dashboard/settings");
+    return updatedSettings;
+  } catch (error) {
+    console.error("Error updating user settings:", error);
+    throw error;
+  }
 }
 
 export async function exportUserDataAction() {

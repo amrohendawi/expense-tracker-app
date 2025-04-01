@@ -1,3 +1,6 @@
+"use client" // Convert to client component to support dynamic refreshing
+
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -19,9 +22,24 @@ import { getCategoriesAction } from "@/app/actions/expense-actions"
 import { BudgetDialog } from "@/components/budget/budget-dialog"
 import { BudgetsList } from "@/components/budget/budgets-list"
 
-export default async function BudgetsPage() {
-  // Fetch categories for the add budget dialog
-  const categories = await getCategoriesAction();
+export default function BudgetsPage() {
+  const [categories, setCategories] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  useEffect(() => {
+    // Fetch categories for the add budget dialog
+    const loadCategories = async () => {
+      const data = await getCategoriesAction();
+      setCategories(data);
+    };
+    
+    loadCategories();
+  }, []);
+  
+  // Callback function to refresh the page when a new budget is added
+  const handleBudgetAdded = () => {
+    setRefreshKey(prev => prev + 1);
+  };
   
   return (
     <SidebarProvider>
@@ -47,7 +65,7 @@ export default async function BudgetsPage() {
             </Breadcrumb>
             
             <div className="ml-auto">
-              <BudgetDialog categories={categories}>
+              <BudgetDialog categories={categories} onSuccess={handleBudgetAdded}>
                 <Button size="sm">
                   <Plus className="mr-1 h-4 w-4" />
                   Add Budget
@@ -65,7 +83,7 @@ export default async function BudgetsPage() {
               </p>
             </div>
             <Separator />
-            <BudgetsList />
+            <BudgetsList key={refreshKey} />
           </div>
         </div>
       </SidebarInset>

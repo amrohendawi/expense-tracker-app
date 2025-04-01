@@ -34,6 +34,7 @@ interface BudgetWithCategory {
   id: string
   categoryId: string
   amount: number
+  currency?: string
   startDate: Date
   endDate: Date
   description?: string
@@ -56,10 +57,14 @@ export function BudgetsList() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  const refreshBudgets = () => setRefreshTrigger(prev => prev + 1);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true)
         const [budgetsData, categoriesData] = await Promise.all([
           getBudgetsAction(),
           getCategoriesAction(),
@@ -83,7 +88,7 @@ export function BudgetsList() {
     }
     
     fetchData()
-  }, [])
+  }, [refreshTrigger])
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
@@ -94,6 +99,7 @@ export function BudgetsList() {
     try {
       setIsDeleting(true)
       await deleteBudgetAction(id)
+      refreshBudgets()
       toast({
         title: "Budget deleted",
         description: "Your budget has been deleted successfully.",
@@ -125,7 +131,7 @@ export function BudgetsList() {
         <p className="mb-4 text-sm text-muted-foreground">
           You haven&apos;t created any budgets yet.
         </p>
-        <BudgetDialog categories={categories}>
+        <BudgetDialog categories={categories} onSuccess={refreshBudgets}>
           <Button size="sm">Create your first budget</Button>
         </BudgetDialog>
       </div>
@@ -148,7 +154,7 @@ export function BudgetsList() {
           {budgets.map((budget) => (
             <TableRow key={budget.id}>
               <TableCell>{getCategoryName(budget.categoryId)}</TableCell>
-              <TableCell>{formatCurrency(budget.amount)}</TableCell>
+              <TableCell>{formatCurrency(budget.amount, budget.currency || "USD")}</TableCell>
               <TableCell>
                 {format(new Date(budget.startDate), "MMM d, yyyy")} -{" "}
                 {format(new Date(budget.endDate), "MMM d, yyyy")}
@@ -156,7 +162,11 @@ export function BudgetsList() {
               <TableCell>{budget.description || "—"}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <BudgetDialog budget={budget} categories={categories}>
+                  <BudgetDialog 
+                    budget={budget} 
+                    categories={categories}
+                    onSuccess={refreshBudgets}
+                  >
                     <Button size="icon" variant="ghost">
                       <Pencil className="h-4 w-4" />
                       <span className="sr-only">Edit</span>

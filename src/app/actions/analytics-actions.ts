@@ -1,7 +1,8 @@
-"use server"
+"use server";
 
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+import { Expense } from "@prisma/client";
 
 export async function getExpensesByCategoryAction(startDate: Date, endDate: Date) {
   const { userId } = await auth();
@@ -10,52 +11,52 @@ export async function getExpensesByCategoryAction(startDate: Date, endDate: Date
     return [];
   }
 
-  const expenses = await prisma.expense.findMany({
+  // Get categories with their expenses
+  const categories = await prisma.category.findMany({
     where: {
       userId,
-      date: {
-        gte: startDate,
-        lte: endDate,
+      expenses: {
+        some: {
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
       },
     },
     include: {
-      category: true,
+      expenses: {
+        where: {
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      },
     },
   });
 
-  const categoryTotals: Record<string, { 
-    id: string, 
-    name: string, 
-    color: string, 
-    amount: number 
-  }> = {};
+  // Calculate total expenses to get percentages
+  const totalExpenses = categories.reduce(
+    (total, category) =>
+      total + category.expenses.reduce((sum, exp) => sum + exp.amount, 0),
+    0
+  );
 
-  let totalAmount = 0;
+  // Format data for the chart
+  return categories.map((category) => {
+    const amount = category.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
 
-  // First pass: calculate totals
-  for (const expense of expenses) {
-    const { categoryId, category, amount } = expense;
-    totalAmount += amount;
-    
-    if (!categoryTotals[categoryId]) {
-      categoryTotals[categoryId] = {
-        id: categoryId,
-        name: category.name,
-        color: category.color,
-        amount: 0,
-      };
-    }
-    
-    categoryTotals[categoryId].amount += amount;
-  }
-
-  // Second pass: calculate percentages
-  const result = Object.values(categoryTotals).map(category => ({
-    ...category,
-    percentage: totalAmount > 0 ? (category.amount / totalAmount) * 100 : 0
-  }));
-
-  return result;
+    return {
+      id: category.id,
+      name: category.name,
+      color: category.color,
+      amount,
+      percentage,
+      expenses: category.expenses, // Include full expense data for currency conversion
+    };
+  });
 }
 
 export async function getMonthlyExpensesAction(year: number) {

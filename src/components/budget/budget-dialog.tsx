@@ -35,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { createBudgetAction, updateBudgetAction } from "@/app/actions/budget-actions"
+import { useCurrency } from "@/context/currency-context"
 
 // Define a simplified category type that matches what's returned from getCategoriesAction
 type CategoryWithBasicInfo = {
@@ -45,6 +46,7 @@ type CategoryWithBasicInfo = {
 
 const budgetFormSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
+  currency: z.string().min(1, "Please select a currency"),
   categoryId: z.string().min(1, "Please select a category"),
   startDate: z.date(),
   endDate: z.date(),
@@ -58,23 +60,28 @@ export function BudgetDialog({
   children,
   budget,
   categories,
+  onSuccess,
 }: {
   children: React.ReactNode
   budget?: {
     id: string
     categoryId: string
     amount: number
+    currency?: string
     startDate: Date
     endDate: Date
     description?: string
     period?: string
   }
   categories: CategoryWithBasicInfo[]
+  onSuccess?: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const { currency: userPreferredCurrency } = useCurrency();
 
   const defaultValues: Partial<BudgetFormValues> = {
     amount: budget?.amount || 0,
+    currency: budget?.currency || userPreferredCurrency,
     categoryId: budget?.categoryId || "",
     startDate: budget?.startDate ? new Date(budget.startDate) : new Date(),
     endDate: budget?.endDate ? new Date(budget.endDate) : new Date(),
@@ -107,6 +114,11 @@ export function BudgetDialog({
       }
       setOpen(false)
       form.reset()
+      
+      // Call the onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (error) {
       console.error(error)
       toast({
@@ -131,27 +143,56 @@ export function BudgetDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="0.00"
-                      type="number"
-                      step="0.01"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Enter the budget amount for this category.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0.00"
+                        type="number"
+                        step="0.01"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro</SelectItem>
+                        <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                        <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                        <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                        <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
             <FormField
               control={form.control}
               name="categoryId"
@@ -170,7 +211,13 @@ export function BudgetDialog({
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
-                          {category.name}
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -182,6 +229,7 @@ export function BudgetDialog({
                 </FormItem>
               )}
             />
+            
             <FormField
               control={form.control}
               name="period"

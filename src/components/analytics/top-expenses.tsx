@@ -1,74 +1,49 @@
-"use client"
+"use client";
 
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { Expense } from "@prisma/client"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/context/currency-context";
 
-interface TopExpensesProps {
-  expenses: (Expense & {
-    category: {
-      name: string
-      color: string
-    }
-  })[]
-  limit?: number
+interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  date: Date;
+  category?: {
+    name: string;
+    color: string;
+  };
 }
 
-export function TopExpenses({ expenses, limit = 5 }: TopExpensesProps) {
-  // Sort expenses by amount (descending) and limit to the specified number
-  const topExpenses = [...expenses]
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, limit)
-
-  if (topExpenses.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[200px] text-center">
-        <p className="text-muted-foreground">No expense data available.</p>
-      </div>
-    )
-  }
-
+export function TopExpenses({ expenses }: { expenses: Expense[] }) {
+  const { currency } = useCurrency();
+  
   return (
-    <div className="w-full overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {topExpenses.map((expense) => (
-            <TableRow key={expense.id}>
-              <TableCell className="font-medium">
-                {formatDate(expense.date)}
-              </TableCell>
-              <TableCell>{expense.description || "—"}</TableCell>
-              <TableCell>
-                <Badge 
-                  style={{ backgroundColor: expense.category.color }}
-                  className="text-white"
-                >
-                  {expense.category.name}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                {formatCurrency(expense.amount)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      {expenses.length === 0 ? (
+        <div className="text-center py-4">
+          <p className="text-muted-foreground">No expenses found for this period</p>
+        </div>
+      ) : (
+        expenses.map((expense) => (
+          <div key={expense.id} className="flex items-start justify-between">
+            <div>
+              <p className="font-medium">{expense.title}</p>
+              <div className="flex items-center gap-2 mt-1">
+                {expense.category && (
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: expense.category.color }}
+                  />
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {expense.category?.name || "Uncategorized"} • {formatDate(new Date(expense.date))}
+                </p>
+              </div>
+            </div>
+            <p className="font-semibold">{formatCurrency(expense.amount, currency)}</p>
+          </div>
+        ))
+      )}
     </div>
-  )
+  );
 }

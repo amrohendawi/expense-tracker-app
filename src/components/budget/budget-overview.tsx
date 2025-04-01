@@ -1,76 +1,98 @@
-"use client"
+"use client";
 
-import { Progress } from "@/components/ui/progress"
-import { formatCurrency } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress";
+import { convertCurrency, formatCurrency } from "@/lib/utils";
+import { useMemo } from "react";
 
-interface BudgetStatusItem {
-  category?: {
-    id: string
-    name: string
-    color: string
-  }
+interface BudgetStatus {
   budget: {
-    id: string
-    amount: number
-  }
-  spent: number
-  remaining: number
-  percentage: number
+    id: string;
+    amount: number;
+    period: string;
+    category: {
+      id: string;
+      name: string;
+      color: string;
+    };
+  };
+  spent: number;
+  remaining: number;
+  percentage: number;
 }
 
 interface BudgetOverviewProps {
-  budgetStatus: BudgetStatusItem[]
+  budgetStatus: BudgetStatus[];
+  targetCurrency?: string;
 }
 
-export function BudgetOverview({ budgetStatus }: BudgetOverviewProps) {
-  if (budgetStatus.length === 0) {
+export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetOverviewProps) {
+  // Convert budget amounts to target currency
+  const convertedBudgetStatus = useMemo(() => {
+    return budgetStatus.map(item => {
+      // Assuming budget amounts are in USD
+      const budgetAmount = convertCurrency(item.budget.amount, "USD", targetCurrency);
+      const spentAmount = convertCurrency(item.spent, "USD", targetCurrency);
+      const remainingAmount = budgetAmount - spentAmount;
+      const percentage = budgetAmount > 0 ? Math.min((spentAmount / budgetAmount) * 100, 100) : 0;
+      
+      return {
+        ...item,
+        budget: {
+          ...item.budget,
+          amount: budgetAmount
+        },
+        spent: spentAmount,
+        remaining: remainingAmount,
+        percentage
+      };
+    });
+  }, [budgetStatus, targetCurrency]);
+
+  if (!budgetStatus || budgetStatus.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <p className="text-muted-foreground">No budget data available.</p>
+      <div className="flex flex-col items-center justify-center h-40">
+        <p className="text-muted-foreground">No budgets found</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Create budgets to track your spending
+        </p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
-      {budgetStatus.map((item) => (
+      {convertedBudgetStatus.map((item) => (
         <div key={item.budget.id} className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between">
             <div className="flex items-center gap-2">
-              {item.category ? (
-                <Badge style={{ backgroundColor: item.category.color }}>
-                  {item.category.name}
-                </Badge>
-              ) : (
-                <Badge>General</Badge>
-              )}
+              <div
+                className="h-3 w-3 rounded-full"
+                style={{ backgroundColor: item.budget.category?.color || "#888" }}
+              ></div>
+              <span className="font-medium">{item.budget.category?.name}</span>
             </div>
-            <div className="text-sm font-medium">
-              {formatCurrency(item.spent)} / {formatCurrency(item.budget.amount)}
+            <div className="text-right">
+              <span
+                className={`text-sm ${
+                  item.remaining < 0 ? "text-red-500" : "text-muted-foreground"
+                }`}
+              >
+                Remaining: {formatCurrency(item.remaining, targetCurrency)}
+              </span>
+              <div className="text-xs text-muted-foreground">
+                {formatCurrency(item.spent, targetCurrency)} of {formatCurrency(item.budget.amount, targetCurrency)}
+              </div>
             </div>
           </div>
           <Progress
             value={item.percentage}
-            className="h-2"
-            indicatorColor={
-              item.percentage >= 100
-                ? "#ef4444" // red-500
-                : item.percentage >= 80
-                ? "#eab308" // yellow-500
-                : "#22c55e" // green-500
-            }
+            className={`h-2 ${item.percentage > 100 ? "bg-red-200" : "bg-primary/20"}`}
+            style={{
+              "--progress-indicator-color": item.percentage > 100 ? "var(--red-500)" : "var(--primary)"
+            } as React.CSSProperties}
           />
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              {item.remaining < 0
-                ? `${formatCurrency(Math.abs(item.remaining))} over budget`
-                : `${formatCurrency(item.remaining)} remaining`}
-            </span>
-            <span>{Math.round(item.percentage)}% used</span>
-          </div>
         </div>
       ))}
     </div>
-  )
+  );
 }

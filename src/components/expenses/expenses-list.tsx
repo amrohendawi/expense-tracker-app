@@ -19,6 +19,7 @@ import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { ExpenseDialog } from "./expense-dialog";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 
 interface Expense {
   id: string;
@@ -28,6 +29,7 @@ interface Expense {
   categoryId: string;
   description: string | null;
   category: { id: string; name: string; color: string };
+  currency?: string;
 }
 
 interface Category {
@@ -61,7 +63,7 @@ export function ExpensesList({ expenses, categories, onDelete, onEdit }: Expense
           {expenses.map((expense) => (
             <TableRow key={expense.id}>
               <TableCell className="font-medium">{expense.title}</TableCell>
-              <TableCell>${expense.amount.toFixed(2)}</TableCell>
+              <TableCell>{formatCurrency(expense.amount, expense.currency || "USD")}</TableCell>
               <TableCell>{format(new Date(expense.date), "MMM d, yyyy")}</TableCell>
               <TableCell>
                 {expense.category && (
