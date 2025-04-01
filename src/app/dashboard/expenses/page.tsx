@@ -18,8 +18,25 @@ import { Plus } from "lucide-react"
 import { getCategoriesAction } from "@/app/actions/expense-actions"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
 import { ExpensesListWrapper } from "@/components/expenses/expenses-list-wrapper"
+import { DateRangeFilter } from "@/components/date-range-filter"
+import { Suspense } from "react"
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  // Get the selected date or default to current month
+  const currentDate = new Date();
+  const yearParam = searchParams?.year || '';
+  const monthParam = searchParams?.month || '';
+  
+  const year = yearParam ? parseInt(yearParam as string) : currentDate.getFullYear();
+  const month = monthParam ? parseInt(monthParam as string) : currentDate.getMonth();
+
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 0);
+  
   // Fetch categories for the add expense dialog
   const categories = await getCategoriesAction();
   
@@ -45,12 +62,16 @@ export default async function ExpensesPage() {
               </Breadcrumb>
             </div>
             
-            <ExpenseDialog categories={categories}>
-              <Button size="sm">
-                <Plus className="mr-1.5 h-4 w-4" />
-                Add Expense
-              </Button>
-            </ExpenseDialog>
+            <div className="flex items-center gap-4">
+              <DateRangeFilter currentYear={year} currentMonth={month} />
+              
+              <ExpenseDialog categories={categories}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add Expense
+                </Button>
+              </ExpenseDialog>
+            </div>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -58,11 +79,13 @@ export default async function ExpensesPage() {
             <div className="p-6">
               <h2 className="text-xl font-semibold">Expenses</h2>
               <p className="text-sm text-muted-foreground">
-                Manage your expenses
+                Manage your expenses for {new Date(startOfMonth).toLocaleString('default', { month: 'long' })} {year}
               </p>
             </div>
             <Separator />
-            <ExpensesListWrapper />
+            <Suspense fallback={<div className="p-8 text-center">Loading expenses...</div>}>
+              <ExpensesListWrapper startDate={startOfMonth} endDate={endOfMonth} />
+            </Suspense>
           </div>
         </div>
       </SidebarInset>
