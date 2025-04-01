@@ -57,7 +57,7 @@ export default async function CategoriesPage() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="rounded-lg border bg-card">
+          <div className="max-w-3xl mx-auto w-full rounded-lg border bg-card">
             <div className="p-6">
               <h2 className="text-xl font-semibold">Categories</h2>
               <p className="text-sm text-muted-foreground">

@@ -10,6 +10,7 @@ import {
   Settings,
   Wallet,
 } from "lucide-react"
+import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -23,38 +24,44 @@ import { useUser } from "@clerk/nextjs"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUser();
+  const pathname = usePathname();
   
   const navMain = [
     {
       title: "Dashboard",
       url: "/dashboard",
       icon: Home,
-      isActive: true,
+      isActive: pathname === "/dashboard",
     },
     {
       title: "Expenses",
       url: "/dashboard/expenses",
       icon: CreditCard,
+      isActive: pathname === "/dashboard/expenses",
     },
     {
       title: "Budgets",
       url: "/dashboard/budgets",
       icon: Wallet,
+      isActive: pathname === "/dashboard/budgets",
     },
     {
       title: "Categories",
       url: "/dashboard/categories",
       icon: PieChart,
+      isActive: pathname === "/dashboard/categories",
     },
     {
       title: "Analytics",
       url: "/dashboard/analytics",
       icon: BarChart3,
+      isActive: pathname === "/dashboard/analytics",
     },
     {
       title: "Settings",
       url: "/dashboard/settings",
       icon: Settings,
+      isActive: pathname === "/dashboard/settings",
     },
   ]
 
