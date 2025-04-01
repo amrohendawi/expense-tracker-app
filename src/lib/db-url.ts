@@ -12,8 +12,8 @@ export function getDatabaseUrl(): string {
   
   // Log all available environment variables related to database (without sensitive values)
   const envVars = {
-    connect_POSTGRES_PRISMA_URL: !!process.env.connect_POSTGRES_PRISMA_URL,
-    connect_POSTGRES_URL_NON_POOLING: !!process.env.connect_POSTGRES_URL_NON_POOLING,
+    POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL,
+    POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
     DATABASE_URL: !!process.env.DATABASE_URL,
     POSTGRES_URL: !!process.env.POSTGRES_URL,
     VERCEL: !!process.env.VERCEL,
@@ -23,11 +23,11 @@ export function getDatabaseUrl(): string {
   console.log('[db-url] Available DB environment variables:', envVars);
   
   // Preferred URL for Prisma
-  if (process.env.connect_POSTGRES_PRISMA_URL) {
-    console.log('[db-url] Using connect_POSTGRES_PRISMA_URL');
-    const protocol = process.env.connect_POSTGRES_PRISMA_URL.split('://')[0];
+  if (process.env.POSTGRES_PRISMA_URL) {
+    console.log('[db-url] Using POSTGRES_PRISMA_URL');
+    const protocol = process.env.POSTGRES_PRISMA_URL.split('://')[0];
     console.log('[db-url] Database protocol:', protocol);
-    return process.env.connect_POSTGRES_PRISMA_URL;
+    return process.env.POSTGRES_PRISMA_URL;
   }
   
   // Fallback to standard DATABASE_URL
@@ -50,8 +50,8 @@ export function getDatabaseUrl(): string {
  * Gets the direct URL for non-pooled connections
  */
 export function getDirectDatabaseUrl(): string {
-  if (process.env.connect_POSTGRES_URL_NON_POOLING) {
-    return process.env.connect_POSTGRES_URL_NON_POOLING;
+  if (process.env.POSTGRES_URL_NON_POOLING) {
+    return process.env.POSTGRES_URL_NON_POOLING;
   }
   
   // Fall back to the standard URL if direct URL not specified

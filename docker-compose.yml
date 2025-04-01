@@ -30,8 +30,8 @@ services:
       dockerfile: Dockerfile
     container_name: expense-tracker-prisma-migrate
     environment:
-      connect_POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-      connect_POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
+      POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
+      POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
     volumes:
       - ./prisma:/app/prisma
       - ./package.json:/app/package.json
@@ -51,12 +51,12 @@ services:
       - "3000:3000"
     environment:
       # Database connection
-      connect_POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-      connect_POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
+      POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
+      POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
       
       # Supabase connection - using direct PostgreSQL connection since we're not running Supabase
       SUPABASE_URL: http://postgres:5432
-      connect_NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
       
       # Clerk Auth - these need to be provided when running the container
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-your-pub-key}
