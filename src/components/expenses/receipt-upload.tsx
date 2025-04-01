@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, X, Loader2, Check } from "lucide-react";
+import { Upload, X, Loader2, Check, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
@@ -17,6 +17,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -25,7 +26,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
   };
 
   const processFile = (selectedFile: File) => {
-    // Validate file type
     const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!validTypes.includes(selectedFile.type)) {
       toast({
@@ -35,8 +35,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
       });
       return;
     }
-    
-    // Validate file size (max 10MB)
+
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (selectedFile.size > maxSize) {
       toast({
@@ -46,51 +45,44 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
       });
       return;
     }
-    
+
     setFile(selectedFile);
-    
-    // Only create preview for images
+
     if (selectedFile.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreview(e.target?.result as string);
-        // Reset dimensions when loading a new image
         setImageDimensions(null);
       };
       reader.readAsDataURL(selectedFile);
     } else {
-      // For PDFs, just show a placeholder
       setPreview("/file.svg");
       setImageDimensions(null);
     }
-    
-    // Reset states
+
     setSuccess(false);
   };
 
-  // Load and set image dimensions once preview is available
   useEffect(() => {
-    if (preview && preview.startsWith('data:image')) {
-      const img = document.createElement('img');
+    if (preview && preview.startsWith("data:image")) {
+      const img = document.createElement("img");
       img.onload = () => {
-        // Calculate appropriate dimensions while maintaining aspect ratio
-        const maxWidth = 400; // Maximum width for the image preview
-        const maxHeight = 500; // Maximum height for the image preview
-        
+        const maxWidth = 400;
+        const maxHeight = 500;
+
         let width = img.width;
         let height = img.height;
-        
-        // Scale down if needed while maintaining aspect ratio
+
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
         }
-        
+
         if (height > maxHeight) {
           width = (width * maxHeight) / height;
           height = maxHeight;
         }
-        
+
         setImageDimensions({ width, height });
       };
       img.src = preview;
@@ -109,32 +101,31 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
 
   const handleProcessReceipt = async () => {
     if (!file) return;
-    
+
     setLoading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("file", file);
-      
+
       const response = await fetch("/api/process-receipt", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to process receipt");
       }
-      
+
       const { data } = await response.json();
-      
+
       setSuccess(true);
       toast({
         title: "Receipt processed successfully",
         description: "The receipt data has been extracted.",
       });
-      
-      // Pass the extracted data to the parent component
+
       onReceiptProcessed(data);
     } catch (error) {
       console.error("Error processing receipt:", error);
@@ -148,7 +139,6 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
     }
   };
 
-  // Drag and drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -173,7 +163,7 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processFile(e.dataTransfer.files[0]);
     }
@@ -181,8 +171,10 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
 
   return (
     <div className="space-y-4">
-      <div 
-        className={`flex flex-col items-center justify-center rounded-lg border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-300'} p-6 transition-colors ${!preview ? 'hover:border-gray-400' : ''}`}
+      <div
+        className={`flex flex-col items-center justify-center rounded-lg border-2 ${
+          isDragging ? "border-blue-500 bg-blue-50" : "border-dashed border-gray-300"
+        } p-6 transition-colors ${!preview ? "hover:border-gray-400" : ""}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -197,41 +189,70 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
               className="hidden"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={handleFileChange}
-              capture="environment" // Enables camera on mobile devices
             />
-            <div className="flex items-center justify-center">
-              {/* Upload/Camera button */}
+
+            <input
+              ref={cameraInputRef}
+              type="file"
+              id="camera-upload"
+              className="hidden"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+              capture="environment"
+            />
+
+            <div className="flex items-center justify-center gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => document.getElementById("receipt-upload")?.click()}
+                onClick={() => fileInputRef.current?.click()}
                 className="flex items-center space-x-2"
               >
                 <Upload className="h-4 w-4" />
-                <span>Upload or Take Photo</span>
+                <span>Choose File</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center space-x-2"
+              >
+                <Camera className="h-4 w-4" />
+                <span>Take Photo</span>
               </Button>
             </div>
-            
-            <p className="text-sm text-gray-500 mt-2">
-              or drag and drop your receipt here
-            </p>
-            <p className="text-xs text-gray-500">
-              Supported formats: JPEG, PNG, WebP, PDF (max 10MB)
-            </p>
+
+            <p className="text-sm text-gray-500 mt-2">or drag and drop your receipt here</p>
+            <p className="text-xs text-gray-500">Supported formats: JPEG, PNG, WebP, PDF (max 10MB)</p>
           </>
         ) : (
           <div className="relative w-full">
             <div className="flex items-center justify-center">
               {preview.startsWith("data:image") ? (
-                <div className={`relative overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm mx-auto ${!imageDimensions ? 'min-h-[100px]' : ''}`} 
-                     style={imageDimensions ? { width: `${imageDimensions.width}px`, height: `${imageDimensions.height}px` } : {}}>
+                <div
+                  className={`relative overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm mx-auto ${
+                    !imageDimensions ? "min-h-[100px]" : ""
+                  }`}
+                  style={
+                    imageDimensions
+                      ? { width: `${imageDimensions.width}px`, height: `${imageDimensions.height}px` }
+                      : {}
+                  }
+                >
                   {!imageDimensions && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                     </div>
                   )}
-                  <div className={`relative ${!imageDimensions ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-                       style={imageDimensions ? { width: `${imageDimensions.width}px`, height: `${imageDimensions.height}px` } : {}}>
+                  <div
+                    className={`relative ${!imageDimensions ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+                    style={
+                      imageDimensions
+                        ? { width: `${imageDimensions.width}px`, height: `${imageDimensions.height}px` }
+                        : {}
+                    }
+                  >
                     <Image
                       src={preview}
                       alt="Receipt preview"
@@ -240,16 +261,15 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
                       className="p-2"
                     />
                   </div>
-                  {file && <p className="absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 p-1 text-center text-xs text-white">{file.name}</p>}
+                  {file && (
+                    <p className="absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 p-1 text-center text-xs text-white">
+                      {file.name}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex h-48 w-full flex-col items-center justify-center rounded-md border border-gray-200 bg-white p-4 shadow-sm">
-                  <Image
-                    src={preview}
-                    alt="File preview"
-                    width={64}
-                    height={64}
-                  />
+                  <Image src={preview} alt="File preview" width={64} height={64} />
                   <p className="mt-2 text-sm text-gray-700">{file?.name}</p>
                   <p className="text-xs text-gray-500">{file ? `${(file.size / 1024).toFixed(1)} KB` : ""}</p>
                 </div>
@@ -265,13 +285,9 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
           </div>
         )}
       </div>
-      
+
       {file && (
-        <Button
-          onClick={handleProcessReceipt}
-          className="w-full"
-          disabled={loading}
-        >
+        <Button onClick={handleProcessReceipt} className="w-full" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
