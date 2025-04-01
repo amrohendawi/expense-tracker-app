@@ -23,20 +23,6 @@ export default clerkMiddleware(async (auth, req) => {
   // If the route IS public, or if the user is authenticated for a protected route,
   // the request will proceed without intervention here.
   // You could add further logic here if needed, e.g., role checks for specific routes.
-
-  // Example: Role-based access for an admin section
-  // const isAdminRoute = createRouteMatcher(['/admin(.*)']);
-  // if (isAdminRoute(req)) {
-  //   await auth().protect(has => {
-  //     // Check for a specific role or permission
-  //     return has({ role: 'org:admin' });
-  //     // Or check if the user is signed in at all for this route,
-  //     // even if it wasn't caught by the !isPublicRoute check above
-  //     // return has();
-  //   });
-  // }
-
-  // No explicit NextResponse.next() is required unless you add custom header/response logic
 });
 
 export const config = {
@@ -60,10 +46,4 @@ export const config = {
      */
     '/(api|trpc)(.*)'
   ],
-  // matcher: [ // You can also use the recommended matcher from the Clerk v5 docs:
-  //   // Skip Next.js internals and all static files, unless found in search params
-  //   '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-  //   // Always run for API routes
-  //   '/(api|trpc)(.*)',
-  // ],
 };
