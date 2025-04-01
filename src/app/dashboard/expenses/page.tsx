@@ -15,11 +15,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { getCategoriesAction } from "@/app/actions/expense-actions"
+import { getCategoriesAction, getExpensesAction } from "@/app/actions/expense-actions"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
 import { ExpensesListWrapper } from "@/components/expenses/expenses-list-wrapper"
 import { DateRangeFilter } from "@/components/date-range-filter"
-import { Suspense } from "react"
 
 export default async function ExpensesPage({
   searchParams,
@@ -39,6 +38,12 @@ export default async function ExpensesPage({
   
   // Fetch categories for the add expense dialog
   const categories = await getCategoriesAction();
+  
+  // Pre-fetch expenses to avoid the infinite loop
+  const expenses = await getExpensesAction({
+    startDate: startOfMonth,
+    endDate: endOfMonth,
+  });
   
   return (
     <SidebarProvider>
@@ -83,9 +88,11 @@ export default async function ExpensesPage({
               </p>
             </div>
             <Separator />
-            <Suspense fallback={<div className="p-8 text-center">Loading expenses...</div>}>
-              <ExpensesListWrapper startDate={startOfMonth} endDate={endOfMonth} />
-            </Suspense>
+            <ExpensesListWrapper 
+              startDate={startOfMonth} 
+              endDate={endOfMonth} 
+              initialExpenses={expenses} 
+            />
           </div>
         </div>
       </SidebarInset>

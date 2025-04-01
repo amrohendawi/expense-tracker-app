@@ -1,8 +1,5 @@
-"use client"
+"use client";
 
-import { Edit, Trash2 } from "lucide-react"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -10,131 +7,110 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { ExpenseDialog } from "./expense-dialog"
-import { Badge } from "@/components/ui/badge"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { ExpenseDialog } from "./expense-dialog";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
-interface ExpensesListProps {
-  expenses: {
-    id: string
-    title: string
-    amount: number
-    date: Date
-    categoryId: string
-    description?: string | null
-    category: { id: string; name: string; color: string }
-  }[]
-  categories: { id: string; name: string; color: string }[]
-  onDelete: (id: string) => void
-  onEdit: (expense: {
-    id: string
-    title: string
-    amount: number
-    date: Date
-    categoryId: string
-    description?: string | null
-    category: { id: string; name: string; color: string }
-  }) => void
+interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  date: Date;
+  categoryId: string;
+  description: string | null;
+  category: { id: string; name: string; color: string };
 }
 
-export function ExpensesList({
-  expenses,
-  categories,
-  onDelete,
-  onEdit,
-}: ExpensesListProps) {
-  if (expenses.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <p className="text-muted-foreground">No expenses found.</p>
-      </div>
-    )
-  }
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
 
+interface ExpensesListProps {
+  expenses: Expense[];
+  categories: Category[];
+  onDelete: (id: string) => Promise<void>;
+  onEdit: () => void;
+}
+
+export function ExpensesList({ expenses, categories, onDelete, onEdit }: ExpensesListProps) {
   return (
-    <div className="space-y-4">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Title</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead>Amount</TableHead>
             <TableHead>Date</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead className="w-[80px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {expenses.map((expense) => (
             <TableRow key={expense.id}>
               <TableCell className="font-medium">{expense.title}</TableCell>
+              <TableCell>${expense.amount.toFixed(2)}</TableCell>
+              <TableCell>{format(new Date(expense.date), "MMM d, yyyy")}</TableCell>
               <TableCell>
-                <Badge 
-                  variant="outline"
-                  className="flex items-center gap-1.5 font-normal"
-                >
-                  <div 
-                    className="h-2.5 w-2.5 rounded-full" 
-                    style={{ backgroundColor: expense.category.color }}
-                  />
-                  {expense.category.name}
-                </Badge>
-              </TableCell>
-              <TableCell>{formatDate(expense.date)}</TableCell>
-              <TableCell className="text-right">
-                {formatCurrency(expense.amount)}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-2">
-                  <ExpenseDialog
-                    expense={expense}
-                    categories={categories}
-                    onSuccess={() => onEdit(expense)}
+                {expense.category && (
+                  <Badge 
+                    style={{ 
+                      backgroundColor: expense.category.color || "#888888",
+                      color: "#ffffff" 
+                    }}
                   >
-                    <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
+                    {expense.category.name}
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell className="max-w-xs truncate">
+                {expense.description || "-"}
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Open menu</span>
                     </Button>
-                  </ExpenseDialog>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this expense? This
-                          action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(expense.id)}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <ExpenseDialog 
+                      categories={categories} 
+                      expenseToEdit={expense}
+                      onSuccess={onEdit}
+                    >
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                    </ExpenseDialog>
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive"
+                      onSelect={() => onDelete(expense.id)}
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

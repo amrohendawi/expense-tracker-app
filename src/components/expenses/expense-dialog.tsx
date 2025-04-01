@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { format } from "date-fns"
+import { useState, ReactNode } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
 
 // Define a simplified category type that matches what's returned from getCategoriesAction
 type CategoryWithBasicInfo = {
@@ -13,7 +13,6 @@ type CategoryWithBasicInfo = {
   color: string;
 };
 
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -30,21 +32,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
-import { createExpenseAction, updateExpenseAction } from "@/app/actions/expense-actions"
-import { ReceiptUpload } from "./receipt-upload"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ReceiptData } from "@/lib/schemas/receipt-schema"
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/use-toast";
+import { createExpenseAction, updateExpenseAction } from "@/app/actions/expense-actions";
+import { ReceiptUpload } from "./receipt-upload";
+import { ReceiptData } from "@/lib/schemas/receipt-schema";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -59,107 +59,74 @@ const formSchema = z.object({
   }),
   description: z.string().optional(),
   receiptUrl: z.string().optional(),
-})
+});
 
-type ExpenseFormValues = z.infer<typeof formSchema>
+type ExpenseFormValues = z.infer<typeof formSchema>;
 
 interface ExpenseDialogProps {
-  children: React.ReactNode
-  expense?: {
-    id: string
-    title: string
-    amount: number
-    date: Date
-    categoryId: string
-    description?: string
-    category: CategoryWithBasicInfo
-    receiptUrl?: string
-  }
-  categories?: CategoryWithBasicInfo[]
-  onSuccess?: () => void
+  children: ReactNode;
+  categories?: CategoryWithBasicInfo[];
+  expenseToEdit?: any;
+  onSuccess?: () => void;
 }
 
 export function ExpenseDialog({
   children,
-  expense,
   categories = [],
+  expenseToEdit,
   onSuccess,
 }: ExpenseDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>("receipt")
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(expense?.receiptUrl || null)
-
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(expenseToEdit ? "manual" : "receipt");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(expenseToEdit?.receiptUrl || null);
+  
+  // Set default values based on whether we're editing or creating
+  const defaultValues: Partial<ExpenseFormValues> = expenseToEdit
+    ? {
+        title: expenseToEdit.title,
+        amount: expenseToEdit.amount,
+        date: new Date(expenseToEdit.date),
+        categoryId: expenseToEdit.categoryId,
+        description: expenseToEdit.description || "",
+        receiptUrl: expenseToEdit.receiptUrl || "",
+      }
+    : {
+        title: "",
+        amount: 0,
+        date: new Date(),
+        categoryId: "",
+        description: "",
+        receiptUrl: "",
+      };
+  
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: expense
-      ? {
-          title: expense.title,
-          amount: expense.amount,
-          date: new Date(expense.date),
-          categoryId: expense.categoryId,
-          description: expense.description || "",
-          receiptUrl: expense.receiptUrl || "",
-        }
-      : {
-          title: "",
-          amount: 0,
-          date: new Date(),
-          categoryId: "",
-          description: "",
-          receiptUrl: "",
-        },
-  })
-
+    defaultValues,
+  });
+  
   const {
     formState: { errors },
-  } = form
-
-  async function onSubmit(values: ExpenseFormValues) {
-    try {
-      // Ensure all values are properly formatted for submission
-      const formattedValues = {
-        title: values.title,
-        amount: values.amount,
-        date: values.date,
-        categoryId: values.categoryId,
-        description: values.description || null,
-        receiptUrl: receiptUrl || null,
-      };
-
-      if (expense) {
-        await updateExpenseAction(expense.id, formattedValues)
-        toast({
-          title: "Expense updated",
-          description: "Your expense has been updated successfully.",
-        })
-      } else {
-        await createExpenseAction(formattedValues)
-        toast({
-          title: "Expense created",
-          description: "Your expense has been created successfully.",
-        })
-      }
-
-      setOpen(false)
-      form.reset()
-
-      if (onSuccess) {
-        onSuccess()
-      }
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Something went wrong",
-        description: "Please try again later.",
-        variant: "destructive",
-      })
+  } = form;
+  
+  // Reset form when dialog opens, with different values depending on edit vs create
+  const handleOpenChange = (newOpenState: boolean) => {
+    if (newOpenState) {
+      form.reset(defaultValues);
+      setReceiptUrl(expenseToEdit?.receiptUrl || null);
+      setActiveTab(expenseToEdit ? "manual" : "receipt");
     }
-  }
+    setOpen(newOpenState);
+  };
 
   const handleReceiptProcessed = (data: ReceiptData) => {
     // Update form with extracted data
-    form.setValue("title", data.title);
-    form.setValue("amount", data.amount);
+    if (data.title) {
+      form.setValue("title", data.title);
+    }
+    
+    if (data.amount) {
+      form.setValue("amount", data.amount);
+    }
 
     // Parse the date string to a Date object
     if (data.date) {
@@ -200,15 +167,61 @@ export function ExpenseDialog({
     // Switch to manual tab to review and edit the extracted data
     setActiveTab("manual");
   };
+  
+  const onSubmit = async (values: ExpenseFormValues) => {
+    try {
+      // Ensure all values are properly formatted for submission
+      const formattedValues = {
+        title: values.title,
+        amount: values.amount,
+        date: values.date,
+        categoryId: values.categoryId,
+        description: values.description || null,
+        receiptUrl: receiptUrl || null,
+      };
+      
+      if (expenseToEdit) {
+        // Update existing expense
+        await updateExpenseAction(expenseToEdit.id, formattedValues);
+        toast({
+          title: "Expense updated",
+          description: "Your expense has been updated successfully.",
+        });
+      } else {
+        // Create new expense
+        await createExpenseAction(formattedValues);
+        toast({
+          title: "Expense created",
+          description: "Your expense has been created successfully.",
+        });
+      }
+      
+      // Close the dialog
+      setOpen(false);
+      form.reset();
+      
+      // Call the success callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Failed to save expense:", error);
+      toast({
+        title: "Something went wrong",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{expense ? "Edit Expense" : "Add Expense"}</DialogTitle>
+          <DialogTitle>{expenseToEdit ? "Edit Expense" : "Add Expense"}</DialogTitle>
           <DialogDescription>
-            {expense
+            {expenseToEdit
               ? "Update the details of your existing expense."
               : "Add a new expense to your tracker."}
           </DialogDescription>
@@ -240,6 +253,7 @@ export function ExpenseDialog({
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="amount"
@@ -259,6 +273,7 @@ export function ExpenseDialog({
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="date"
@@ -277,6 +292,7 @@ export function ExpenseDialog({
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="categoryId"
@@ -330,6 +346,7 @@ export function ExpenseDialog({
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="description"
@@ -346,9 +363,10 @@ export function ExpenseDialog({
                     </FormItem>
                   )}
                 />
+                
                 <DialogFooter>
                   <Button type="submit">
-                    {expense ? "Update Expense" : "Add Expense"}
+                    {expenseToEdit ? "Update Expense" : "Add Expense"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -357,5 +375,5 @@ export function ExpenseDialog({
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
