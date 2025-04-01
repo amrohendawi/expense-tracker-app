@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -25,13 +24,19 @@ export default async function DashboardPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
-  // Get the selected date or default to current month
   const currentDate = new Date();
-  const yearParam = searchParams?.year || '';
-  const monthParam = searchParams?.month || '';
   
-  const year = yearParam ? parseInt(yearParam as string) : currentDate.getFullYear();
-  const month = monthParam ? parseInt(monthParam as string) : currentDate.getMonth();
+  // Get search parameters using the new async patterns
+  const params = await Promise.resolve(searchParams);
+  
+  const yearStr = typeof params.year === 'string' ? params.year : 
+                  Array.isArray(params.year) ? params.year[0] : '';
+  
+  const monthStr = typeof params.month === 'string' ? params.month : 
+                   Array.isArray(params.month) ? params.month[0] : '';
+  
+  const year = yearStr ? parseInt(yearStr) : currentDate.getFullYear();
+  const month = monthStr ? parseInt(monthStr) : currentDate.getMonth();
 
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);

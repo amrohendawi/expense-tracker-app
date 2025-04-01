@@ -1,12 +1,31 @@
 "use server"
 
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
-import { Expense } from "@prisma/client"
-import { revalidatePath } from "next/cache"
+// Updated imports for Clerk 6
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from "@/lib/prisma";
+import { Expense } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+
+export async function clerkAuth() {
+  try {
+    // Properly await auth() in Clerk 6 with Next.js 15
+    const session = await auth();
+    const userId = session.userId;
+    
+    if (userId) {
+      return { userId };
+    }
+    
+    // No valid auth found
+    return { userId: null };
+  } catch (error) {
+    console.error("Authentication error:", error);
+    return { userId: null };
+  }
+}
 
 export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">) {
-  const { userId } = await auth();
+  const { userId } = await clerkAuth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -24,7 +43,7 @@ export async function createExpenseAction(data: Omit<Expense, "id" | "userId" | 
 }
 
 export async function updateExpenseAction(id: string, data: Partial<Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">>) {
-  const { userId } = await auth();
+  const { userId } = await clerkAuth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -52,7 +71,7 @@ export async function updateExpenseAction(id: string, data: Partial<Omit<Expense
 }
 
 export async function deleteExpenseAction(id: string) {
-  const { userId } = await auth();
+  const { userId } = await clerkAuth();
   
   if (!userId) {
     throw new Error("Unauthorized");
@@ -79,7 +98,7 @@ export async function deleteExpenseAction(id: string) {
 }
 
 export async function getCategoriesAction(): Promise<{ id: string; name: string; color: string }[]> {
-  const { userId } = await auth();
+  const { userId } = await clerkAuth();
   
   if (!userId) {
     return [];
@@ -112,7 +131,7 @@ export async function getExpensesAction(filters?: {
   endDate?: Date;
   categoryId?: string;
 }) {
-  const { userId } = await auth();
+  const { userId } = await clerkAuth();
   
   if (!userId) {
     return [];
