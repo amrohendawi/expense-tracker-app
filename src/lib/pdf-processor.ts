@@ -4,8 +4,7 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { 
   formatReceiptData, 
   parseAIResponse,
-  ReceiptExtractionResult
-} from "./receipt-utils";
+  ReceiptExtractionResult} from "./receipt-utils";
 import { saveReceiptFile, processTextWithAI } from "./receipt-actions";
 
 /**
@@ -27,13 +26,20 @@ export async function processPdfReceipt(
     const pdfText = docs.map(doc => doc.pageContent).join("\n");
     
     // Use centralized AI processing function for text analysis
+    // Make sure we're using the latest prompt that includes currency instructions
     const responseText = await processTextWithAI(pdfText, categories);
     
     // Parse the JSON response using shared utility
     const extractedData = parseAIResponse(responseText);
     
+    // Log the extracted currency information for debugging
+    console.log(`Extracted currency: ${extractedData.currency || 'Not found, will default to USD'}`);
+    
     // Format and validate the extracted data using shared utility
+    // This will handle currency validation through the updated formatReceiptData function
     const formattedData = formatReceiptData(extractedData);
+    
+    console.log(`Final receipt data with currency: ${formattedData.currency}`);
     
     // Return the extracted data and the file path
     return {
@@ -42,6 +48,6 @@ export async function processPdfReceipt(
     };
   } catch (error) {
     console.error("Error processing PDF receipt:", error);
-    throw new Error("Failed to process PDF receipt");
+    throw new Error(`Failed to process PDF receipt: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

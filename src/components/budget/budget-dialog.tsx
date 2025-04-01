@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { createBudgetAction, updateBudgetAction } from "@/app/actions/budget-actions"
 import { useCurrency } from "@/context/currency-context"
+import { getCurrencyOptions } from "@/lib/constants/currencies"
 
 // Define a simplified category type that matches what's returned from getCategoriesAction
 type CategoryWithBasicInfo = {
@@ -78,6 +79,7 @@ export function BudgetDialog({
 }) {
   const [open, setOpen] = useState(false)
   const { currency: userPreferredCurrency } = useCurrency();
+  const currencyOptions = getCurrencyOptions();
 
   const defaultValues: Partial<BudgetFormValues> = {
     amount: budget?.amount || 0,
@@ -179,12 +181,11 @@ export function BudgetDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="USD">USD - US Dollar</SelectItem>
-                        <SelectItem value="EUR">EUR - Euro</SelectItem>
-                        <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                        <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                        <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                        <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                        {currencyOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

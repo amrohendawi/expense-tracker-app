@@ -3,8 +3,8 @@
 // Updated imports for Clerk 6
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from "@/lib/prisma";
-import { Expense } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { ReceiptData } from "@/lib/schemas/receipt-schema"; // Add this import
 
 export async function clerkAuth() {
   try {
@@ -48,6 +48,45 @@ export async function createExpenseAction(formData: any) {
   });
 
   revalidatePath("/dashboard");
+  return expense;
+}
+
+/**
+ * Create expense from receipt data
+ */
+export async function createExpenseFromReceiptAction(
+  receiptData: ReceiptData,
+  filePath: string
+) {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Ensure we're using the currency from the receipt, not defaulting to user's currency
+  console.log(`Creating expense with currency: ${receiptData.currency || 'Not specified'}`);
+  
+  // Create the expense record
+  const expense = await prisma.expense.create({
+    data: {
+      userId,
+      title: receiptData.title || "Receipt Expense",
+      amount: receiptData.amount,
+      currency: receiptData.currency || "USD", // Use the receipt's currency or default to USD
+      date: receiptData.date ? new Date(receiptData.date) : new Date(),
+      description: receiptData.description || "",
+      receiptUrl: filePath,
+      // Link to category if provided
+      categoryId: receiptData.categoryId,
+    },
+    include: {
+      category: true,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/expenses");
   return expense;
 }
 

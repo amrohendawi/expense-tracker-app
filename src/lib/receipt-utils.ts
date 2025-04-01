@@ -1,4 +1,5 @@
 import { ReceiptData } from "./schemas/receipt-schema";
+import { getAllCurrencyCodes } from "./constants/currencies";
 
 /**
  * Interface for receipt extraction results
@@ -52,6 +53,34 @@ export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptD
       extractedData.amount = 0;
     }
   }
+  
+  // Normalize and validate currency code - with enhanced logging for debugging
+  if (extractedData.currency) {
+    if (typeof extractedData.currency === 'string') {
+      // Convert to uppercase
+      const originalCurrency = extractedData.currency;
+      extractedData.currency = extractedData.currency.toUpperCase().trim();
+      
+      // Validate currency code against our supported list
+      const supportedCurrencies = getAllCurrencyCodes();
+      if (!supportedCurrencies.includes(extractedData.currency)) {
+        // Try to extract a valid currency code if possible
+        const matchedCurrency = supportedCurrencies.find(code => 
+          extractedData.currency?.includes(code)
+        );
+        extractedData.currency = matchedCurrency || 'USD';
+        console.log(`Normalized currency from "${originalCurrency}" to "${extractedData.currency}"`);
+      }
+    } else {
+      // Not a string, set to default
+      extractedData.currency = 'USD';
+      console.log(`Invalid currency format, defaulting to USD`);
+    }
+  } else {
+    // No currency provided, set default
+    extractedData.currency = 'USD';
+    console.log(`No currency provided, defaulting to USD`);
+  }
 
   return extractedData as ReceiptData;
 }
@@ -86,7 +115,7 @@ export function generateReceiptPrompt(options: {
   categories: string[];
 }): string {
   const { inputType, text, categories } = options;
-  const today = new Date().toISOString().split('T')[0];
+  const supportedCurrencies = getAllCurrencyCodes();
   
   // Base prompt content that's shared between image and text formats
   const baseInstructions = `
@@ -97,7 +126,7 @@ export function generateReceiptPrompt(options: {
     - suggestedCategory (if none of the existing categories match well, suggest a new category name)
     - vendor (the merchant or service provider)
     - description (any additional details)
-    - currency (if identifiable, use the 3-letter code like USD, EUR, etc.)
+    - currency (identify the 3-letter currency code from these options: ${supportedCurrencies.join(", ")}. Look for currency either as code or symbol like $, €, £, ¥ etc.)
     
     Format your response as a valid JSON object with these fields.
     Do not include any explanations, just the JSON.

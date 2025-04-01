@@ -3,7 +3,8 @@
 import { 
   formatReceiptData, 
   parseAIResponse,
-  ReceiptExtractionResult
+  ReceiptExtractionResult,
+  generateReceiptPrompt
 } from "./receipt-utils";
 import { saveReceiptFile, processImageWithAI } from "./receipt-actions";
 
@@ -31,8 +32,13 @@ export async function processImageReceipt(
     // Extract and parse the AI response
     const extractedData = parseAIResponse(aiResponse);
     
+    // Log the extracted currency information for debugging
+    console.log(`Extracted currency from image: ${extractedData.currency || 'Not found, will default to USD'}`);
+    
     // Format and validate the extracted data
     const formattedData = formatReceiptData(extractedData);
+    
+    console.log(`Final receipt data with currency: ${formattedData.currency}`);
 
     // Return the extracted data and the file path
     return {

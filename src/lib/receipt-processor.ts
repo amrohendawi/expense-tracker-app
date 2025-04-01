@@ -23,9 +23,22 @@ export async function processReceiptFile(
   }
   
   // Process the file based on its type
-  if (isPdf) {
-    return processPdfReceipt(file, categories);
-  } else {
-    return processImageReceipt(file, categories);
+  try {
+    let result;
+    if (isPdf) {
+      result = await processPdfReceipt(file, categories);
+    } else {
+      result = await processImageReceipt(file, categories);
+    }
+    
+    // Ensure currency is always defined
+    if (!result.data.currency) {
+      result.data.currency = "USD";
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error processing receipt:", error);
+    throw new Error(`Failed to process receipt: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
