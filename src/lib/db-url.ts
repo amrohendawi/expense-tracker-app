@@ -27,7 +27,7 @@ export function getDatabaseUrl(): string {
     console.log('[db-url] Using POSTGRES_PRISMA_URL');
     const protocol = process.env.POSTGRES_PRISMA_URL.split('://')[0];
     console.log('[db-url] Database protocol:', protocol);
-    return process.env.POSTGRES_PRISMA_URL;
+    return process.env.POSTGRES_PRISMA_URL + '?pgbouncer=true';
   }
   
   // Fallback to standard DATABASE_URL
