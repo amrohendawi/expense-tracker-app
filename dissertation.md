@@ -281,7 +281,7 @@ Relationships between these entities include:
 
 Figure 3 presents the entity-relationship diagram showing the database schema.
 
-![Database Schema](/docs/database-schema.png)
+![Database Schema](/docs/supabase-DB-schema.png)
 *Figure 3: Entity-relationship diagram of the database schema*
 
 #### 4.2.2 Data Models
@@ -466,7 +466,47 @@ The application incorporates a sophisticated generative AI system for automated 
 
 The receipt processing system uses a multimodal architecture combining computer vision and natural language processing capabilities:
 
-![Receipt Processing Architecture](https://via.placeholder.com/800x500.png?text=Receipt+Processing+Architecture)
+```mermaid
+flowchart TB
+    User([User]) -->|Uploads Receipt| UI[User Interface]
+    
+    subgraph "Receipt Processing System"
+        UI -->|Submit| APIRoute[API Route Handler]
+        
+        subgraph "Document Preprocessing Module"
+            APIRoute -->|File| FileHandler[Format Detection & Conversion]
+            FileHandler -->|JPEG/PNG| ImageProc[Image Processing]
+            FileHandler -->|PDF| PDFProc[PDF Processing]
+            
+            ImageProc -->|Enhancement| ImgPrep[Image Preprocessing]
+            PDFProc -->|Text Extraction| PDFText[PDF Text Extraction]
+        end
+        
+        subgraph "Vision Encoder & Text Recognition"
+            ImgPrep -->|Base64 Image| VisionAPI[Vision API]
+            PDFText -->|Text Content| TextAPI[Text API]
+        end
+        
+        subgraph "Information Extraction Model"
+            VisionAPI -->|Visual Context| LLM[GPT-4o-mini]
+            TextAPI -->|Text Context| LLM
+            LLM -->|JSON Output| Parser[Response Parser]
+        end
+        
+        subgraph "Post-Processing"
+            Parser -->|Extract Structure| Validation[Data Processing]
+            Validation -->|Format| Currency[Currency Normalization]
+            Validation -->|Format| Dates[Date Parsing]
+            Validation -->|Match/Suggest| Categories[Category Mapping]
+            
+            Currency & Dates & Categories --> SchemaValidation[Schema Validation]
+        end
+    end
+    
+    SchemaValidation -->|Structured Data| ExpenseForm[Pre-filled Expense Form]
+    ExpenseForm --> User
+```
+
 *Figure 5: Architecture of the generative AI receipt processing system*
 
 The architecture consists of four primary components:
