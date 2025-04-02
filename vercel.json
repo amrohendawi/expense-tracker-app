@@ -1,5 +1,13 @@
 {
   "buildCommand": "prisma generate && next build",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "env": {
+    "POSTGRES_PRISMA_URL_PGBOUNCER": "${POSTGRES_PRISMA_URL}?pgbouncer=true"
+  },
+  "build": {
+    "env": {
+      "POSTGRES_PRISMA_URL_PGBOUNCER": "${POSTGRES_PRISMA_URL}?pgbouncer=true"
+    }
+  }
 }

@@ -12,7 +12,7 @@ export function getDatabaseUrl(): string {
   
   // Log all available environment variables related to database (without sensitive values)
   const envVars = {
-    POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL,
+    POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL_PGBOUNCER,
     POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
     DATABASE_URL: !!process.env.DATABASE_URL,
     POSTGRES_URL: !!process.env.POSTGRES_URL,
@@ -23,11 +23,11 @@ export function getDatabaseUrl(): string {
   console.log('[db-url] Available DB environment variables:', envVars);
   
   // Preferred URL for Prisma
-  if (process.env.POSTGRES_PRISMA_URL) {
-    console.log('[db-url] Using POSTGRES_PRISMA_URL');
-    const protocol = process.env.POSTGRES_PRISMA_URL.split('://')[0];
+  if (process.env.POSTGRES_PRISMA_URL_PGBOUNCER) {
+    console.log('[db-url] Using POSTGRES_PRISMA_URL_PGBOUNCER');
+    const protocol = process.env.POSTGRES_PRISMA_URL_PGBOUNCER.split('://')[0];
     console.log('[db-url] Database protocol:', protocol);
-    return process.env.POSTGRES_PRISMA_URL;
+    return process.env.POSTGRES_PRISMA_URL_PGBOUNCER;
   }
   
   // Fallback to standard DATABASE_URL
