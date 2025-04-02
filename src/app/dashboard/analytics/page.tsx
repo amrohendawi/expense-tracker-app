@@ -38,8 +38,15 @@ export default async function AnalyticsPage({
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
   const currentDate = new Date();
-  const yearStr = searchParams?.year?.toString() || '';
-  const monthStr = searchParams?.month?.toString() || '';
+  
+  // Get search parameters using the new async patterns for Next.js 15
+  const params = await Promise.resolve(searchParams);
+  
+  const yearStr = typeof params.year === 'string' ? params.year : 
+                  Array.isArray(params.year) ? params.year[0] : '';
+  
+  const monthStr = typeof params.month === 'string' ? params.month : 
+                   Array.isArray(params.month) ? params.month[0] : '';
   
   const year = yearStr ? parseInt(yearStr) : currentDate.getFullYear();
   const month = monthStr ? parseInt(monthStr) : currentDate.getMonth();
