@@ -19,12 +19,12 @@ const prismaClientSingleton = () => {
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   };
   
-  // Only add datasource configuration if DATABASE_URL is defined
+  // Only add datasource configuration if SUPABASE_URL is defined
   // This prevents build errors with "undefined" datasource
-  if (process.env.DATABASE_URL) {
+  if (process.env.SUPABASE_URL) {
     options.datasources = {
       db: {
-        url: process.env.DATABASE_URL,
+        url: process.env.SUPABASE_URL,
       },
     };
   }

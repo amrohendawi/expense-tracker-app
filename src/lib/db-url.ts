@@ -4,7 +4,7 @@
 /**
  * Gets the appropriate database URL with fallbacks
  * - Checks for Vercel-specific PostgreSQL environment variables
- * - Falls back to standard DATABASE_URL if needed
+ * - Falls back to standard SUPABASE_URL if needed
  */
 export function getDatabaseUrl(): string {
   console.log('[db-url] Environment check:');
@@ -14,7 +14,7 @@ export function getDatabaseUrl(): string {
   const envVars = {
     POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL_PGBOUNCER,
     POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
-    DATABASE_URL: !!process.env.DATABASE_URL,
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
     POSTGRES_URL: !!process.env.POSTGRES_URL,
     VERCEL: !!process.env.VERCEL,
     VERCEL_ENV: process.env.VERCEL_ENV
@@ -30,10 +30,10 @@ export function getDatabaseUrl(): string {
     return process.env.POSTGRES_PRISMA_URL;
   }
   
-  // Fallback to standard DATABASE_URL
-  if (process.env.DATABASE_URL) {
-    console.log('[db-url] Using DATABASE_URL as fallback');
-    return process.env.DATABASE_URL;
+  // Fallback to standard SUPABASE_URL
+  if (process.env.SUPABASE_URL) {
+    console.log('[db-url] Using SUPABASE_URL as fallback');
+    return process.env.SUPABASE_URL;
   }
   
   // Fallback to standard POSTGRES_URL (sometimes used by Vercel)
