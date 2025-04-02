@@ -13,21 +13,29 @@ const CurrencyContext = createContext<CurrencyContextType>({
   setCurrency: () => {},
 });
 
-export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrency] = useState("USD");
+export function CurrencyProvider({ 
+  initialCurrency = "USD", 
+  children 
+}: { 
+  initialCurrency?: string; 
+  children: ReactNode 
+}) {
+  const [currency, setCurrency] = useState(initialCurrency);
   
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const settings = await getUserSettingsAction();
-        setCurrency(settings.currency);
+        if (settings.currency !== currency) {
+          setCurrency(settings.currency);
+        }
       } catch (error) {
         console.error("Failed to load currency settings:", error);
       }
     };
     
     loadSettings();
-  }, []);
+  }, [currency]);
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency }}>

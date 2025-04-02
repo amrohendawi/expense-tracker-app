@@ -17,11 +17,9 @@ interface ExpenseFormValues {
  * Set form values from receipt data
  */
 function populateFormFromReceipt(
-  receiptData: ReceiptData, 
+  receiptData: ReceiptData,
   form: UseFormReturn<ExpenseFormValues>
 ) {
-  console.log("Populating form from receipt data:", receiptData);
-  
   // Reset form with values from receipt
   form.reset({
     title: receiptData.title || "Receipt Expense",
@@ -38,8 +36,7 @@ function populateFormFromReceipt(
     ...(receiptData.description && { description: receiptData.description }),
     ...(receiptData.categoryId && { categoryId: receiptData.categoryId }),
   });
-  
-  console.log("Form values after populating:", form.getValues());
+
 }
 
 export function ExpenseForm({ receiptData }: { receiptData?: ReceiptData }) {
@@ -57,9 +54,7 @@ export function ExpenseForm({ receiptData }: { receiptData?: ReceiptData }) {
   useEffect(() => {
     if (receiptData) {
       populateFormFromReceipt(receiptData, form);
-      
-      console.log(`Receipt currency: ${receiptData.currency}, Form currency: ${form.getValues("currency")}`);
-      
+
       if (receiptData.currency && form.getValues("currency") !== receiptData.currency) {
         form.setValue("currency", receiptData.currency);
       }

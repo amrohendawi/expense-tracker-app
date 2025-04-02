@@ -1,20 +1,17 @@
-import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { createUserIfNotExists } from "@/lib/db";
+import { getUserSettingsAction } from "@/app/actions/settings-actions";
+import { CurrencyProvider } from "@/context/currency-context";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  // Create user in our database if they don't exist
-  await createUserIfNotExists();
-
-  return <>{children}</>;
+  // Get user settings server-side before rendering
+  const userSettings = await getUserSettingsAction();
+  
+  return (
+    <CurrencyProvider initialCurrency={userSettings.currency}>
+      {children}
+    </CurrencyProvider>
+  );
 }

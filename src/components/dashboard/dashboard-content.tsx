@@ -4,9 +4,6 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency, convertCurrency, convertExpensesToCurrency } from "@/lib/utils";
-import { getCategoriesAction, getExpensesAction } from "@/app/actions/expense-actions";
-import { getBudgetStatusAction } from "@/app/actions/budget-actions";
-import { getExpensesByCategoryAction } from "@/app/actions/analytics-actions";
 import { BudgetOverview } from "@/components/budget/budget-overview";
 import { SpendingChart } from "@/components/analytics/spending-chart";
 import { CategoryDistribution } from "@/components/analytics/category-distribution";
@@ -15,7 +12,6 @@ import { useEffect, useState } from "react";
 
 export function DashboardContent({
   startDate,
-  endDate,
   initialExpenses,
   initialBudgetStatus,
   initialCategoryData
@@ -27,7 +23,7 @@ export function DashboardContent({
   initialCategoryData: any[];
 }) {
   const { currency } = useCurrency();
-  const [expenses, setExpenses] = useState(initialExpenses);
+  const [expenses] = useState(initialExpenses);
   const [budgetStatus, setBudgetStatus] = useState(initialBudgetStatus);
   const [categoryData, setCategoryData] = useState(initialCategoryData);
   
@@ -45,6 +41,53 @@ export function DashboardContent({
   const latestExpenses = [...expenses].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   ).slice(0, 5);
+
+  console.log("Latest Expenses:", latestExpenses);
+  console.log("Total Expenses:", totalExpenses);
+  console.log("Total Budget:", totalBudget);
+
+  // Process budget status for accurate remaining calculations
+  useEffect(() => {
+    // Create a map of expense totals by category
+    const categoryExpenses = expenses.reduce((acc: Record<string, number>, expense: any) => {
+      const categoryId = expense.categoryId;
+      if (!categoryId) return acc;
+      
+      const amount = convertCurrency(expense.amount, expense.currency || "USD", currency);
+      acc[categoryId] = (acc[categoryId] || 0) + amount;
+      return acc;
+    }, {});
+    
+    // Process each budget to calculate remaining amounts correctly
+    const processedBudgetStatus = initialBudgetStatus.map((budget: any) => {
+      // Convert budget amount to user's currency
+      const budgetAmount = convertCurrency(
+        budget.budget.amount, 
+        budget.budget.currency || "USD", 
+        currency
+      );
+      
+      // Calculate prorated budget amount based on period
+      let proratedAmount = budgetAmount;
+      
+      // Get expenses for this category
+      const categoryId = budget.budget.category.id;
+      const categoryExpenseTotal = categoryExpenses[categoryId] || 0;
+      
+      // Calculate remaining amount and percentage
+      const remaining = budgetAmount - categoryExpenseTotal;
+      const percentage = budgetAmount > 0 ? Math.min((categoryExpenseTotal / budgetAmount) * 100, 100) : 0;
+      
+      return {
+        ...budget,
+        spent: categoryExpenseTotal,
+        remaining: remaining,
+        percentage: percentage
+      };
+    });
+    
+    setBudgetStatus(processedBudgetStatus);
+  }, [initialBudgetStatus, expenses, currency]);
 
   // Prepare normalized data for charts with converted currencies
   useEffect(() => {

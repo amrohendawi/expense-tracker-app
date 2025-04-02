@@ -166,7 +166,6 @@ export function ExpenseDialog({
     if (data.receiptUrl) {
       setReceiptUrl(data.receiptUrl);
       form.setValue("receiptUrl", data.receiptUrl);
-      console.log("Receipt URL set:", data.receiptUrl);
     }
 
     // Switch to manual tab to review and edit the extracted data

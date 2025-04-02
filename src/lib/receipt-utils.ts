@@ -69,17 +69,16 @@ export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptD
           extractedData.currency?.includes(code)
         );
         extractedData.currency = matchedCurrency || 'USD';
-        console.log(`Normalized currency from "${originalCurrency}" to "${extractedData.currency}"`);
       }
     } else {
       // Not a string, set to default
       extractedData.currency = 'USD';
-      console.log(`Invalid currency format, defaulting to USD`);
+      console.info(`Invalid currency format, defaulting to USD`);
     }
   } else {
     // No currency provided, set default
     extractedData.currency = 'USD';
-    console.log(`No currency provided, defaulting to USD`);
+    console.info(`No currency provided, defaulting to USD`);
   }
 
   return extractedData as ReceiptData;

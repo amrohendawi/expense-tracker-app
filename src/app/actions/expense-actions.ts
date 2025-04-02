@@ -64,9 +64,6 @@ export async function createExpenseFromReceiptAction(
     throw new Error("Unauthorized");
   }
 
-  // Ensure we're using the currency from the receipt, not defaulting to user's currency
-  console.log(`Creating expense with currency: ${receiptData.currency || 'Not specified'}`);
-  
   // Create the expense record
   const expense = await prisma.expense.create({
     data: {

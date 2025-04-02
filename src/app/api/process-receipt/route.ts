@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           // If any error in parsing, set to null
-          console.log("Error parsing date:", error);
+          console.error("Error parsing date:", error);
           extractedData.date = null;
         }
       } else {

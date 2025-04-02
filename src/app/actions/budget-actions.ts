@@ -163,17 +163,11 @@ export async function getBudgetStatusAction() {
     },
   });
 
-  // Debug logs
-  console.log(`Found ${expenses.length} expenses for current month`);
-  console.log(`Found ${budgets.length} active budgets`);
-
   // Calculate spent amount for each budget
   const budgetStatus = budgets.map(budget => {
     // Filter expenses by this budget's category
     const categoryExpenses = expenses.filter(exp => exp.categoryId === budget.categoryId);
-    
-    console.log(`Budget ${budget.category.name}: ${categoryExpenses.length} expenses found`);
-    
+        
     // Convert expenses to budget's currency
     const spent = categoryExpenses.reduce((sum, expense) => {
       const expenseCurrency = expense.currency || "USD";
