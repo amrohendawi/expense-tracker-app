@@ -17,19 +17,24 @@ export async function createBudgetAction(data: {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
-  const budget = await prisma.budget.create({
-    data: {
-      ...data,
-      userId,
-    },
-  });
+  try {
+    const budget = await prisma.budget.create({
+      data: {
+        ...data,
+        userId,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/budgets");
-  return budget;
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/budgets");
+    return { success: true, data: budget };
+  } catch (error) {
+    console.error("Error creating budget:", error);
+    return { success: false, error: "Failed to create budget" };
+  }
 }
 
 export async function updateBudgetAction({
@@ -48,7 +53,7 @@ export async function updateBudgetAction({
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   const budget = await prisma.budget.findUnique({
@@ -58,26 +63,31 @@ export async function updateBudgetAction({
   });
 
   if (!budget || budget.userId !== userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Budget not found or access denied" };
   }
 
-  const updatedBudget = await prisma.budget.update({
-    where: {
-      id,
-    },
-    data,
-  });
+  try {
+    const updatedBudget = await prisma.budget.update({
+      where: {
+        id,
+      },
+      data,
+    });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/budgets");
-  return updatedBudget;
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/budgets");
+    return { success: true, data: updatedBudget };
+  } catch (error) {
+    console.error("Error updating budget:", error);
+    return { success: false, error: "Failed to update budget" };
+  }
 }
 
 export async function deleteBudgetAction(id: string) {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   const budget = await prisma.budget.findUnique({
@@ -87,18 +97,23 @@ export async function deleteBudgetAction(id: string) {
   });
 
   if (!budget || budget.userId !== userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Budget not found or access denied" };
   }
 
-  await prisma.budget.delete({
-    where: {
-      id,
-    },
-  });
+  try {
+    await prisma.budget.delete({
+      where: {
+        id,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/budgets");
-  return true;
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/budgets");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting budget:", error);
+    return { success: false, error: "Failed to delete budget" };
+  }
 }
 
 export async function getBudgetsAction() {

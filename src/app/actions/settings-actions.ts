@@ -15,11 +15,11 @@ export interface UserSettings {
   darkMode: boolean
 }
 
-export async function getUserSettingsAction(): Promise<UserSettings> {
+export async function getUserSettingsAction(): Promise<UserSettings | null> {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return null;
   }
 
   const settings = await prisma.userSettings.findUnique({
@@ -42,7 +42,7 @@ export async function updateUserSettingsAction(settings: Partial<UserSettings>) 
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   // Extract only fields that are in the Prisma schema
@@ -84,10 +84,10 @@ export async function updateUserSettingsAction(settings: Partial<UserSettings>) 
     });
     
     revalidatePath("/dashboard/settings");
-    return updatedSettings;
+    return { success: true, data: updatedSettings };
   } catch (error) {
     console.error("Error updating user settings:", error);
-    throw error;
+    return { success: false, error: "Failed to update settings" };
   }
 }
 
@@ -95,7 +95,7 @@ export async function exportUserDataAction() {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   // Get all user data
@@ -121,33 +121,38 @@ export async function exportUserDataAction() {
     exportDate: new Date().toISOString(),
   };
 
-  return exportData;
+  return { success: true, data: exportData };
 }
 
 export async function deleteAllUserDataAction() {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
-  // Delete all user data in the correct order to respect foreign key constraints
-  await prisma.$transaction([
-    prisma.expense.deleteMany({ where: { userId } }),
-    prisma.budget.deleteMany({ where: { userId } }),
-    prisma.category.deleteMany({ where: { userId } }),
-  ]);
+  try {
+    // Delete all user data in the correct order to respect foreign key constraints
+    await prisma.$transaction([
+      prisma.expense.deleteMany({ where: { userId } }),
+      prisma.budget.deleteMany({ where: { userId } }),
+      prisma.category.deleteMany({ where: { userId } }),
+    ]);
 
-  revalidatePath("/dashboard");
-  
-  return { success: true };
+    revalidatePath("/dashboard");
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting user data:", error);
+    return { success: false, error: "Failed to delete user data" };
+  }
 }
 
 export async function getAccountStatisticsAction() {
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return null;
   }
 
   // Get counts of user data

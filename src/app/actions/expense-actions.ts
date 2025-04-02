@@ -28,27 +28,32 @@ export async function createExpenseAction(formData: any) {
   const { userId } = await clerkAuth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
-  const expense = await prisma.expense.create({
-    data: {
-      title: formData.title,
-      amount: formData.amount,
-      currency: formData.currency || "USD", // Add currency handling
-      date: formData.date,
-      description: formData.description,
-      categoryId: formData.categoryId,
-      receiptUrl: formData.receiptUrl,
-      userId,
-    },
-    include: {
-      category: true,
-    },
-  });
+  try {
+    const expense = await prisma.expense.create({
+      data: {
+        title: formData.title,
+        amount: formData.amount,
+        currency: formData.currency || "USD", // Add currency handling
+        date: formData.date,
+        description: formData.description,
+        categoryId: formData.categoryId,
+        receiptUrl: formData.receiptUrl,
+        userId,
+      },
+      include: {
+        category: true,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  return expense;
+    revalidatePath("/dashboard");
+    return { success: true, data: expense };
+  } catch (error) {
+    console.error("Error creating expense:", error);
+    return { success: false, error: "Failed to create expense" };
+  }
 }
 
 /**
@@ -61,37 +66,42 @@ export async function createExpenseFromReceiptAction(
   const { userId } = await auth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
-  // Create the expense record
-  const expense = await prisma.expense.create({
-    data: {
-      userId,
-      title: receiptData.title || "Receipt Expense",
-      amount: receiptData.amount,
-      currency: receiptData.currency || "USD", // Use the receipt's currency or default to USD
-      date: receiptData.date ? new Date(receiptData.date) : new Date(),
-      description: receiptData.description || "",
-      receiptUrl: filePath,
-      // Link to category if provided
-      categoryId: receiptData.categoryId,
-    },
-    include: {
-      category: true,
-    },
-  });
+  try {
+    // Create the expense record
+    const expense = await prisma.expense.create({
+      data: {
+        userId,
+        title: receiptData.title || "Receipt Expense",
+        amount: receiptData.amount,
+        currency: receiptData.currency || "USD", // Use the receipt's currency or default to USD
+        date: receiptData.date ? new Date(receiptData.date) : new Date(),
+        description: receiptData.description || "",
+        receiptUrl: filePath,
+        // Link to category if provided
+        categoryId: receiptData.categoryId,
+      },
+      include: {
+        category: true,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/expenses");
-  return expense;
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/expenses");
+    return { success: true, data: expense };
+  } catch (error) {
+    console.error("Error creating expense from receipt:", error);
+    return { success: false, error: "Failed to create expense from receipt" };
+  }
 }
 
 export async function updateExpenseAction(id: string, formData: any) {
   const { userId } = await clerkAuth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   const expense = await prisma.expense.findUnique({
@@ -101,36 +111,41 @@ export async function updateExpenseAction(id: string, formData: any) {
   });
 
   if (!expense || expense.userId !== userId) {
-    throw new Error("Unauthorized or expense not found");
+    return { success: false, error: "Expense not found or access denied" };
   }
 
-  const updatedExpense = await prisma.expense.update({
-    where: {
-      id,
-    },
-    data: {
-      title: formData.title,
-      amount: formData.amount,
-      currency: formData.currency || "USD", // Add currency handling
-      date: formData.date,
-      description: formData.description,
-      categoryId: formData.categoryId,
-      receiptUrl: formData.receiptUrl,
-    },
-    include: {
-      category: true,
-    },
-  });
+  try {
+    const updatedExpense = await prisma.expense.update({
+      where: {
+        id,
+      },
+      data: {
+        title: formData.title,
+        amount: formData.amount,
+        currency: formData.currency || "USD", // Add currency handling
+        date: formData.date,
+        description: formData.description,
+        categoryId: formData.categoryId,
+        receiptUrl: formData.receiptUrl,
+      },
+      include: {
+        category: true,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  return updatedExpense;
+    revalidatePath("/dashboard");
+    return { success: true, data: updatedExpense };
+  } catch (error) {
+    console.error("Error updating expense:", error);
+    return { success: false, error: "Failed to update expense" };
+  }
 }
 
 export async function deleteExpenseAction(id: string) {
   const { userId } = await clerkAuth();
   
   if (!userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Authentication required" };
   }
 
   const expense = await prisma.expense.findUnique({
@@ -140,17 +155,22 @@ export async function deleteExpenseAction(id: string) {
   });
 
   if (!expense || expense.userId !== userId) {
-    throw new Error("Unauthorized");
+    return { success: false, error: "Expense not found or access denied" };
   }
 
-  await prisma.expense.delete({
-    where: {
-      id,
-    },
-  });
+  try {
+    await prisma.expense.delete({
+      where: {
+        id,
+      },
+    });
 
-  revalidatePath("/dashboard");
-  return true;
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting expense:", error);
+    return { success: false, error: "Failed to delete expense" };
+  }
 }
 
 export async function getCategoriesAction(): Promise<{ id: string; name: string; color: string }[]> {
