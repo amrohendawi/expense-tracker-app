@@ -1,6 +1,5 @@
-export const dynamic = 'force-dynamic';
-
-import { AppSidebar } from "@/components/app-sidebar"
+import { getCategoriesAction } from "@/app/actions/category-actions";
+import { AppSidebar } from "@/components/app-sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,23 +7,23 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import { getCategoriesAction } from "@/app/actions/expense-actions"
-import { CategoryDialog } from "@/components/categories/category-dialog"
-import { CategoriesList } from "@/components/categories/categories-list"
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { CategoryDialog } from "@/components/categories/category-dialog";
+import { CategoriesList } from "@/components/categories/categories-list";
+
+export const dynamic = 'force-dynamic';
 
 export default async function CategoriesPage() {
-  // Fetch categories
   const categories = await getCategoriesAction();
-  
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -72,5 +71,5 @@ export default async function CategoriesPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

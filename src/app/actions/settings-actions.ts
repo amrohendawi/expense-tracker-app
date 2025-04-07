@@ -1,8 +1,15 @@
-"use server"
+"use server";
 
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
-import { revalidatePath } from "next/cache"
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { 
+  getUserSettings,
+  updateUserSettings,
+  getExpenses,
+  getCategories,
+  getBudgets,
+  supabase
+} from "@/lib/db";
 
 export interface UserSettings {
   currency: string
@@ -12,170 +19,136 @@ export interface UserSettings {
   emailNotifications: boolean
   budgetAlerts: boolean
   weeklySummary: boolean
-  darkMode: boolean
+  user_id: string
 }
 
 export async function getUserSettingsAction(): Promise<UserSettings | null> {
-  const { userId } = await auth();
-  
-  if (!userId) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return null;
+    }
+
+    const settings = await getUserSettings(userId);
+    return settings;
+  } catch (error) {
+    console.error("[getUserSettingsAction] Error:", error);
     return null;
   }
-
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-  });
-
-  return settings || {
-    currency: "USD",
-    language: "English",
-    theme: "#10b981",
-    autoSave: true,
-    emailNotifications: true,
-    budgetAlerts: true,
-    weeklySummary: true,
-    darkMode: false,
-  };
 }
 
-export async function updateUserSettingsAction(settings: Partial<UserSettings>) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
-  }
-
-  // Extract only fields that are in the Prisma schema
-  const {
-    currency,
-    language,
-    theme,
-    autoSave,
-    emailNotifications,
-    budgetAlerts,
-    weeklySummary,
-    darkMode
-  } = settings;
-
+export async function updateUserSettingsAction(data: {
+  currency?: string;
+  theme?: string;
+}) {
   try {
-    const updatedSettings = await prisma.userSettings.upsert({
-      where: { userId },
-      create: { 
-        userId, 
-        currency, 
-        language, 
-        theme,
-        autoSave,
-        emailNotifications,
-        budgetAlerts,
-        weeklySummary,
-        darkMode
-      },
-      update: { 
-        currency, 
-        language, 
-        theme,
-        autoSave,
-        emailNotifications,
-        budgetAlerts,
-        weeklySummary,
-        darkMode
-      },
-    });
-    
-    revalidatePath("/dashboard/settings");
-    return { success: true, data: updatedSettings };
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const settings = await updateUserSettings(userId, data);
+    revalidatePath("/dashboard");
+    return settings;
   } catch (error) {
-    console.error("Error updating user settings:", error);
-    return { success: false, error: "Failed to update settings" };
+    console.error("[updateUserSettingsAction] Error:", error);
+    throw error;
   }
 }
 
 export async function exportUserDataAction() {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Fetch all user data
+    const [settings, expenses, categories, budgets] = await Promise.all([
+      getUserSettings(userId),
+      getExpenses(userId),
+      getCategories(userId),
+      getBudgets(userId)
+    ]);
+
+    // Create export object
+    const exportData = {
+      settings,
+      expenses,
+      categories,
+      budgets,
+      exportDate: new Date().toISOString()
+    };
+
+    return exportData;
+  } catch (error) {
+    console.error("[exportUserDataAction] Error:", error);
+    throw error;
   }
-
-  // Get all user data
-  const [expenses, categories, budgets] = await Promise.all([
-    prisma.expense.findMany({
-      where: { userId },
-      include: { category: true },
-    }),
-    prisma.category.findMany({
-      where: { userId },
-    }),
-    prisma.budget.findMany({
-      where: { userId },
-      include: { category: true },
-    }),
-  ]);
-
-  // Create export object
-  const exportData = {
-    expenses,
-    categories,
-    budgets,
-    exportDate: new Date().toISOString(),
-  };
-
-  return { success: true, data: exportData };
 }
 
 export async function deleteAllUserDataAction() {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
-  }
-
   try {
-    // Delete all user data in the correct order to respect foreign key constraints
-    await prisma.$transaction([
-      prisma.expense.deleteMany({ where: { userId } }),
-      prisma.budget.deleteMany({ where: { userId } }),
-      prisma.category.deleteMany({ where: { userId } }),
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Delete all user data in order (to respect foreign key constraints)
+    await Promise.all([
+      supabase.from('expenses').delete().eq('user_id', userId),
+      supabase.from('budgets').delete().eq('user_id', userId),
+      supabase.from('categories').delete().eq('user_id', userId),
+      supabase.from('user_settings').delete().eq('user_id', userId)
     ]);
 
     revalidatePath("/dashboard");
-    
-    return { success: true };
   } catch (error) {
-    console.error("Error deleting user data:", error);
-    return { success: false, error: "Failed to delete user data" };
+    console.error("[deleteAllUserDataAction] Error:", error);
+    throw error;
   }
 }
 
 export async function getAccountStatisticsAction() {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return null;
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Get all user data
+    const [expenses, categories, budgets] = await Promise.all([
+      getExpenses(userId),
+      getCategories(userId),
+      getBudgets(userId)
+    ]);
+
+    // Calculate statistics
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalBudgets = budgets.reduce((sum, budget) => sum + budget.amount, 0);
+    const averageExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
+
+    // Group expenses by category
+    const expensesByCategory = expenses.reduce((acc, expense) => {
+      const categoryId = expense.category_id;
+      if (!acc[categoryId]) {
+        acc[categoryId] = 0;
+      }
+      acc[categoryId] += expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalExpenses,
+      totalBudgets,
+      averageExpense,
+      expensesByCategory,
+      totalCategories: categories.length,
+      totalBudgetCount: budgets.length,
+      totalExpenseCount: expenses.length
+    };
+  } catch (error) {
+    console.error("[getAccountStatisticsAction] Error:", error);
+    throw error;
   }
-
-  // Get counts of user data
-  const [expenseCount, categoryCount, budgetCount] = await Promise.all([
-    prisma.expense.count({ where: { userId } }),
-    prisma.category.count({ where: { userId } }),
-    prisma.budget.count({ where: { userId } }),
-  ]);
-
-  // Get first expense date
-  const firstExpense = await prisma.expense.findFirst({
-    where: { userId },
-    orderBy: { date: 'asc' },
-  });
-
-  const accountAge = firstExpense 
-    ? Math.ceil((Date.now() - new Date(firstExpense.date).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-
-  return {
-    expenseCount,
-    categoryCount,
-    budgetCount,
-    accountAge,
-  };
 }

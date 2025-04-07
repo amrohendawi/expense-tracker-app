@@ -1,45 +1,5 @@
+version: "3.8"
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15
-    container_name: expense-tracker-postgres
-    restart: always
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    command: >
-      postgres
-      -c wal_level=logical
-      -c max_wal_senders=10
-      -c max_replication_slots=10
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Prisma Migration Service
-  prisma-migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: expense-tracker-prisma-migrate
-    environment:
-      POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-      POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-    volumes:
-      - ./prisma:/app/prisma
-      - ./package.json:/app/package.json
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: sh -c "npm install prisma && npx prisma migrate deploy"
-
   # Next.js Application
   app:
     build:
@@ -50,28 +10,64 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Database connection
-      POSTGRES_PRISMA_URL: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-      POSTGRES_URL_NON_POOLING: postgresql://postgres:postgres@postgres:5432/postgres?schema=public
-      
-      # Supabase connection - using direct PostgreSQL connection since we're not running Supabase
-      SUPABASE_URL: http://postgres:5432
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
-      
-      # Clerk Auth - these need to be provided when running the container
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-your-pub-key}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-your-secret-key}
-      
-      # OpenAI API Key - needed for receipt processing
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-openai-api-key}
-      
-      # Node environment
       NODE_ENV: production
-    depends_on:
-      postgres:
-        condition: service_healthy
-      prisma-migrate:
-        condition: service_completed_successfully
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  db:
+    image: supabase/postgres:15.1.0.117
+    restart: always
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+      - ./supabase/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      - db_data:/var/lib/postgresql/data
+
+  studio:
+    image: supabase/studio:20250317-6955350
+    restart: unless-stopped
+    ports:
+      - "54323:3000"
+    environment:
+      SUPABASE_URL: http://kong:8000
+      STUDIO_PG_META_URL: http://meta:8080
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+
+  meta:
+    image: supabase/postgres-meta:v0.87.1
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PASSWORD: postgres
+
+  kong:
+    image: supabase/kong:2.8.1
+    restart: unless-stopped
+    ports:
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_DNS_VALID_TTL: "1"
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./supabase/kong.yml:/kong.yml:ro
 
 volumes:
+  db_data:
   postgres-data:

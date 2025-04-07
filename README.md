@@ -2,41 +2,38 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 # Expense Tracker App
 
-A full-featured expense tracking application built with Next.js 15, Clerk authentication, Prisma ORM, and Supabase PostgreSQL.
+A modern expense tracking application built with Next.js, Supabase, and Clerk Authentication.
 
 ## Features
 
-- 🔐 User authentication with Clerk
-- 📊 Dashboard with expense analytics
-- 💰 Track expenses by categories
-- 📅 Filter expenses by date range
+- 📊 Track expenses and income
+- 💰 Set and monitor budgets
 - 📱 Responsive design
-- 🎨 Customizable expense categories
-- 💼 Budget management
-
-## Todos
-
-- [ ] Add scan your receipt feature
-- [ ] Fix currency selection not working issue
-- [ ] Add AI expense analysis and suggestions
+- 🔒 Secure authentication with Clerk
+- 📈 Visual analytics and reports
+- 🌙 Light/Dark mode
+- 💱 Multi-currency support
+- 📷 Receipt scanning and OCR
 
 ## Tech Stack
 
-- **Framework**: Next.js 15.1.0
-- **Authentication**: Clerk v6
-- **Database**: Supabase PostgreSQL
-- **ORM**: Prisma 6.4.1
+- **Frontend**: Next.js 14 with App Router
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Clerk
 - **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
+- **Charts**: Recharts
+- **Forms**: React Hook Form
+- **Validation**: Zod
+- **AI Integration**: OpenAI for receipt processing
 
 ## Prerequisites
 
 Before you begin, ensure you have:
 
-- Node.js 18.x or later
-- npm or yarn
-- PostgreSQL database (local or hosted on Supabase)
-- Clerk account for authentication
+- Node.js 18 or later
+- Docker and Docker Compose
+- Clerk account
+- OpenAI API key (for receipt processing)
 
 ## Getting Started
 
@@ -57,57 +54,43 @@ yarn install
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the root directory by copying the `.env.example` file:
+Create a `.env` file in the root directory with the following variables:
 
-```bash
-cp .env.example .env
+```env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+# OpenAI (for receipt processing)
+OPENAI_API_KEY=your_openai_api_key
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-then, replace the values in the `.env` file with your own values.
+### 4. Set up the database with Supabase
 
-### 4. Set up Clerk Authentication
+Start the Supabase services:
+
+```bash
+docker-compose up -d
+```
+
+Initialize the database:
+
+```bash
+npx supabase db reset
+```
+
+### 5. Set up Clerk Authentication
 
 1. Create an account at [clerk.dev](https://clerk.dev)
 2. Create a new application
 3. Get your API keys from the Clerk dashboard
 4. Add the keys to your `.env` file
 
-### 5. Set up the database with Prisma
-
-Initialize your database:
-
-```bash
-# Generate Prisma client
-npx prisma generate
-
-# Push the schema to your database
-npx prisma db push
-
-# If you need to reset your database during development (DO NOT DO IT IN PRODUCTION!!!!)
-npx prisma migrate reset
-
-# To view your database with Prisma Studio
-npx prisma studio
-```
-
-during development and altering the prisma DB schema it's best advised to use the following commands:
-
-```bash
-# create migration 
-npx prisma migrate dev --name <migration_name>
-
-# apply migration
-npx prisma migrate deploy
-
-# generate prisma client
-npx prisma generate
-```
-
-### 6. OpenAI API Key
-
-Get your OpenAI API key from [OpenAI](https://platform.openai.com/api-keys), create an account and set up billing and budget to prevent unexpected charges. Add the key to your `.env` file.
-
-### 7. Run the development server
+### 6. Run the development server
 
 ```bash
 npm run dev
@@ -123,7 +106,6 @@ You can also run the entire application stack using Docker Compose, which will s
 - The Next.js application
 - PostgreSQL database
 - Supabase services
-- Prisma migrations
 
 ### Prerequisites for Docker
 
@@ -213,22 +195,98 @@ If you encounter issues with the Docker setup:
 
 ## Deployment
 
-### Deploy on Vercel
+### Deploying to Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new).
+1. Push your code to GitHub
+2. Import your repository in Vercel
+3. Set up the following environment variables in Vercel:
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `CLERK_SECRET_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `OPENAI_API_KEY`
+   - `SUPABASE_DB_URL` (for database migrations)
 
-1. Push your code to a GitHub repository
-2. Import the project into Vercel
-3. Add your environment variables in the Vercel dashboard
-4. Deploy
+4. Deploy your database:
+   ```bash
+   # Set your Supabase database URL
+   export SUPABASE_DB_URL=postgres://your-connection-string
 
-### Database Considerations for Production
+   # For initial deployment, set INITIAL_SETUP to true
+   export INITIAL_SETUP=true
 
-For production deployments:
+   # Run the deployment script
+   npm run deploy:db
+   ```
 
-1. Use a connection pooling solution (Supabase provides this)
-2. Ensure SSL is enabled for database connections
-3. Set up proper database backups
+5. Deploy your application:
+   ```bash
+   git push origin main
+   ```
+
+The deployment script will:
+1. Apply all database migrations
+2. Run the seed script if this is the initial setup
+3. Set up Row Level Security policies
+
+### Local Development
+
+1. Start the Supabase services:
+   ```bash
+   npm run db:start
+   ```
+
+2. Reset the database (applies migrations and seed):
+   ```bash
+   npm run db:reset
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Access Supabase Studio:
+   ```bash
+   npm run db:studio
+   ```
+
+### Managing the Database
+
+- Reset the database (applies migrations and seed):
+  ```bash
+  npm run db:reset
+  ```
+
+- Push schema changes to production:
+  ```bash
+  npm run db:push
+  ```
+
+- Create a new migration:
+  ```bash
+  npx supabase migration new your_migration_name
+  ```
+
+### Environment Variables
+
+Create a `.env` file with:
+
+```env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+# OpenAI (for receipt processing)
+OPENAI_API_KEY=your_openai_api_key
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# For production deployment
+SUPABASE_DB_URL=your_production_db_url
+```
 
 ## Contributing
 

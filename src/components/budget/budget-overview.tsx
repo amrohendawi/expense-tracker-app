@@ -5,7 +5,23 @@ import { convertCurrency, formatCurrency } from "@/lib/utils";
 import { useMemo } from "react";
 
 interface BudgetStatus {
-  budget: {
+  id: string;
+  name?: string;
+  amount: number;
+  currency?: string;
+  period?: string;
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+  spent: number;
+  remaining: number;
+  percentage: number;
+  color?: string;
+  isOverBudget?: boolean;
+  // For backward compatibility
+  budget?: {
     id: string;
     amount: number;
     period: string;
@@ -15,9 +31,6 @@ interface BudgetStatus {
       color: string;
     };
   };
-  spent: number;
-  remaining: number;
-  percentage: number;
 }
 
 interface BudgetOverviewProps {
@@ -30,17 +43,14 @@ export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetO
   const convertedBudgetStatus = useMemo(() => {
     return budgetStatus.map(item => {
       // Assuming budget amounts are in USD
-      const budgetAmount = convertCurrency(item.budget.amount, "USD", targetCurrency);
+      const budgetAmount = convertCurrency(item.budget?.amount || item.amount, "USD", targetCurrency);
       const spentAmount = convertCurrency(item.spent, "USD", targetCurrency);
       const remainingAmount = budgetAmount - spentAmount;
       const percentage = budgetAmount > 0 ? Math.min((spentAmount / budgetAmount) * 100, 100) : 0;
       
       return {
         ...item,
-        budget: {
-          ...item.budget,
-          amount: budgetAmount
-        },
+        amount: budgetAmount,
         spent: spentAmount,
         remaining: remainingAmount,
         percentage
@@ -62,14 +72,14 @@ export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetO
   return (
     <div className="space-y-4">
       {convertedBudgetStatus.map((item) => (
-        <div key={item.budget.id} className="space-y-2">
+        <div key={item.id} className="space-y-2">
           <div className="flex justify-between">
             <div className="flex items-center gap-2">
               <div
                 className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: item.budget.category?.color || "#888" }}
+                style={{ backgroundColor: item.category?.color || item.color || "#888" }}
               ></div>
-              <span className="font-medium">{item.budget.category?.name}</span>
+              <span className="font-medium">{item.category?.name || item.name}</span>
             </div>
             <div className="text-right">
               <span
@@ -80,7 +90,7 @@ export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetO
                 Remaining: {formatCurrency(item.remaining, targetCurrency)}
               </span>
               <div className="text-xs text-muted-foreground">
-                {formatCurrency(item.spent, targetCurrency)} of {formatCurrency(item.budget.amount, targetCurrency)}
+                {formatCurrency(item.spent, targetCurrency)} of {formatCurrency(item.amount, targetCurrency)}
               </div>
             </div>
           </div>

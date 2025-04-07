@@ -32,7 +32,8 @@ export function DashboardContent({
   
   // Convert budgets to user's currency
   const totalBudget = budgetStatus.reduce((sum, budget) => {
-    return sum + convertCurrency(budget.budget.amount, budget.budget.currency || "USD", currency);
+    // The budget data is directly on the budget object, not nested
+    return sum + convertCurrency(budget.amount, budget.currency || "USD", currency);
   }, 0);
   
   const totalRemaining = totalBudget - totalExpenses;
@@ -62,8 +63,8 @@ export function DashboardContent({
     const processedBudgetStatus = initialBudgetStatus.map((budget: any) => {
       // Convert budget amount to user's currency
       const budgetAmount = convertCurrency(
-        budget.budget.amount, 
-        budget.budget.currency || "USD", 
+        budget.amount, 
+        budget.currency || "USD", 
         currency
       );
       
@@ -71,7 +72,7 @@ export function DashboardContent({
       let proratedAmount = budgetAmount;
       
       // Get expenses for this category
-      const categoryId = budget.budget.category.id;
+      const categoryId = budget.categoryId;
       const categoryExpenseTotal = categoryExpenses[categoryId] || 0;
       
       // Calculate remaining amount and percentage

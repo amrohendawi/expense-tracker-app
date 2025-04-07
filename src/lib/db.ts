@@ -1,539 +1,988 @@
-import { prisma, withRetry } from "./prisma";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { Category, Expense, Budget } from "@prisma/client";
+import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
+import { defaultCategories } from './default-categories';
+
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T];
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_URL");
+}
+if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY");
+}
+
+export const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+export type User = Tables['users']['Row'];
+export type Expense = Tables['expenses']['Row'];
+export type Category = Tables['categories']['Row'];
+export type Budget = Tables['budgets']['Row'];
+export type UserSettings = Tables['user_settings']['Row'];
 
 // User
 export async function getCurrentUser() {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
-  }
-
   try {
-    return await withRetry(async () => {
-      return await prisma.user.findUnique({
-        where: {
-          id: userId,
-        },
-      });
-    });
+    const { userId } = await auth();
+    if (!userId) {
+      return null;
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (error) {
-    console.log("[getCurrentUser] Error:", 
-      error instanceof Error ? error.message : String(error));
+    console.error('[getCurrentUser] Error:', error);
     return null;
   }
 }
 
-export async function createUserIfNotExists() {
+// User Settings
+export async function getUserSettings(userId: string) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      console.log("[createUserIfNotExists] No userId from auth()");
-      return null;
-    }
-
-    // Use clerkClient instead of getUser
-    let user;
-    try {
-      user = await clerkClient.users.getUser(userId);
-    } catch (clerkError) {
-      console.log("[createUserIfNotExists] Clerk API error:", String(clerkError));
-      return null;
-    }
-    
-    if (!user) {
-      console.log("[createUserIfNotExists] No user data returned from Clerk");
-      return null;
-    }
-
-    // Log user data shape to identify what might be missing
-    console.log("[createUserIfNotExists] User data from Clerk:", {
-      id: userId,
-      hasEmailAddresses: user.emailAddresses?.length > 0,
-      emailAddress: user.emailAddresses?.[0]?.emailAddress || null,
-      firstName: user.firstName || null,
-      lastName: user.lastName || null,
-      imageUrl: user.imageUrl || null
-    });
-
-    // Create the user data payload with null checks
-    const email = user.emailAddresses?.[0]?.emailAddress || "user@example.com";
-    const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User";
-    const image = user.imageUrl || "";
-
-    // Use the withRetry helper to handle database operations
-    const existingUser = await withRetry(async () => {
-      return await prisma.user.findUnique({
-        where: { id: userId }
-      });
-    });
-    
-    let upsertedUser;
-    if (existingUser) {
-      // Update existing user with retry logic
-      upsertedUser = await withRetry(async () => {
-        return await prisma.user.update({
-          where: { id: userId },
-          data: { email, name, image }
-        });
-      });
-    } else {
-      // Create new user with retry logic
-      upsertedUser = await withRetry(async () => {
-        return await prisma.user.create({
-          data: { id: userId, email, name, image }
-        });
-      });
-    }
-
-    // Create default categories
-    const defaultCategories = [
-      { name: "Food", color: "#FF5733", icon: "utensils" },
-      { name: "Transportation", color: "#33A8FF", icon: "car" },
-      { name: "Entertainment", color: "#FF33E9", icon: "film" },
-      { name: "Shopping", color: "#33FF57", icon: "shopping-bag" },
-      { name: "Housing", color: "#8333FF", icon: "home" },
-      { name: "Utilities", color: "#FF8333", icon: "bolt" },
-      { name: "Healthcare", color: "#33FFC1", icon: "hospital" },
-      { name: "Personal", color: "#C133FF", icon: "user" },
-      { name: "Education", color: "#33FFF6", icon: "graduation-cap" },
-      { name: "Other", color: "#BEBEBE", icon: "ellipsis-h" },
-    ];
-
-    // Create default categories with retry logic
-    await Promise.all(
-      defaultCategories.map(category => 
-        withRetry(async () => {
-          return await prisma.category.upsert({
-            where: {
-              name_userId: {
-                name: category.name,
-                userId,
-              },
-            },
-            update: {
-              color: category.color,
-              icon: category.icon,
-            },
-            create: {
-              ...category,
-              userId,
-            },
-          });
-        })
-      )
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
     );
+    
+    const { data, error } = await supabaseAdmin
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
-    return upsertedUser;
+    if (error) {
+      // If no settings exist for this user, create default settings
+      if (error.code === 'PGRST116') {
+        console.log(`[getUserSettings] Creating default settings for user ${userId}`);
+        return await createUserSettings(userId);
+      }
+      console.error('[getUserSettings] Error:', error);
+      throw error;
+    }
+
+    return data;
   } catch (error) {
-    // Use String() to safely convert the error to a string for logging
-    // and avoid the "payload" argument issue
-    console.log("[createUserIfNotExists] Error creating user:", 
-      error instanceof Error ? error.message : String(error));
+    console.error('[getUserSettings] Error:', error);
     return null;
+  }
+}
+
+async function createUserSettings(userId: string) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+    
+    const defaultSettings = {
+      user_id: userId,
+      currency: 'USD',
+      theme: 'light',
+      language: 'English',
+      auto_save: true,
+      email_notifications: true,
+      budget_alerts: true,
+      weekly_summary: true,
+      dark_mode: false
+    };
+    
+    const { data, error } = await supabaseAdmin
+      .from('user_settings')
+      .insert([defaultSettings])
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('[createUserSettings] Error:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('[createUserSettings] Error:', error);
+    // Return default settings as fallback
+    return { 
+      user_id: userId,
+      currency: 'USD', 
+      theme: 'light',
+      language: 'English'
+    };
+  }
+}
+
+export async function updateUserSettings(userId: string, data: Tables['user_settings']['Update']) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+    
+    // Check if settings exist first
+    const { data: existingSettings } = await supabaseAdmin
+      .from('user_settings')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+      
+    if (!existingSettings) {
+      // If no settings exist, create them first
+      return await createUserSettings(userId);
+    }
+    
+    // Update existing settings
+    const { data: settings, error } = await supabaseAdmin
+      .from('user_settings')
+      .update(data)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[updateUserSettings] Error:', error);
+      throw error;
+    }
+    
+    return settings;
+  } catch (error) {
+    console.error('[updateUserSettings] Error:', error);
+    throw error;
   }
 }
 
 // Categories
-export async function getCategories() {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return [];
+export async function getCategories(userId: string) {
+  try {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name');
+
+    if (error) {
+      console.error('[getCategories] Error:', error);
+      
+      // If there's a permission error, try with admin client
+      if (error.code === '42501') {
+        console.log('[getCategories] Attempting with admin client due to permission error');
+        const supabaseAdmin = createClient<Database>(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            auth: {
+              persistSession: false,
+            }
+          }
+        );
+        
+        const { data: adminCategories, error: adminError } = await supabaseAdmin
+          .from('categories')
+          .select('*')
+          .eq('user_id', userId)
+          .order('name');
+          
+        if (adminError) {
+          console.error('[getCategories] Admin Error:', adminError);
+          throw adminError;
+        }
+        
+        return adminCategories || [];
+      }
+      
+      throw error;
+    }
+
+    return categories || [];
+  } catch (error) {
+    console.error('[getCategories] Error:', error);
+    throw error;
   }
-
-  const categories = await prisma.category.findMany({
-    where: {
-      userId,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
-
-  return categories;
 }
 
-export async function createCategory(data: Omit<Category, "id" | "userId" | "createdAt" | "updatedAt">) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function createCategory(userId: string, data: Tables['categories']['Insert']) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    const { data: category, error } = await supabaseAdmin
+      .from('categories')
+      .insert([{ ...data, user_id: userId }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[createCategory] Error:', error);
+      throw error;
+    }
+    
+    return category;
+  } catch (error) {
+    console.error('[createCategory] Error:', error);
+    throw error;
   }
-
-  const category = await prisma.category.create({
-    data: {
-      ...data,
-      userId,
-    },
-  });
-
-  return category;
 }
 
-export async function updateCategory(id: string, data: Partial<Omit<Category, "id" | "userId" | "createdAt" | "updatedAt">>) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function updateCategory(userId: string, id: string, data: Tables['categories']['Update']) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    const { data: category, error } = await supabaseAdmin
+      .from('categories')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', userId)  // Ensure the user owns this category
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[updateCategory] Error:', error);
+      throw error;
+    }
+    
+    return category;
+  } catch (error) {
+    console.error('[updateCategory] Error:', error);
+    throw error;
   }
-
-  const category = await prisma.category.update({
-    where: {
-      id,
-      userId,
-    },
-    data,
-  });
-
-  return category;
 }
 
-export async function deleteCategory(id: string) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function deleteCategory(userId: string, id: string) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    // Ensure the user owns this category
+    const { data: category, error: checkError } = await supabaseAdmin
+      .from('categories')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (checkError || !category) {
+      console.error('[deleteCategory] Category not found or access denied:', checkError);
+      throw new Error('Category not found or access denied');
+    }
+
+    const { error } = await supabaseAdmin
+      .from('categories')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[deleteCategory] Delete Error:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('[deleteCategory] Error:', error);
+    throw error;
   }
-
-  const category = await prisma.category.delete({
-    where: {
-      id,
-      userId,
-    },
-  });
-
-  return category;
 }
 
 // Expenses
-export async function getExpenses(filters?: {
-  startDate?: Date;
-  endDate?: Date;
+export async function getExpenses(userId: string, filters?: {
+  startDate?: string;
+  endDate?: string;
   categoryId?: string;
 }) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return [];
+  try {
+    let query = supabase
+      .from('expenses')
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (filters?.startDate) {
+      query = query.gte('date', filters.startDate);
+    }
+
+    if (filters?.endDate) {
+      query = query.lte('date', filters.endDate);
+    }
+
+    if (filters?.categoryId) {
+      query = query.eq('category_id', filters.categoryId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("[getExpenses] Error:", error);
+    throw error;
   }
-
-  type WhereClause = {
-    userId: string;
-    date?: {
-      gte: Date;
-      lte: Date;
-    };
-    categoryId?: string;
-  };
-
-  const where: WhereClause = { userId };
-
-  if (filters?.startDate && filters?.endDate) {
-    where.date = {
-      gte: filters.startDate,
-      lte: filters.endDate,
-    };
-  }
-
-  if (filters?.categoryId) {
-    where.categoryId = filters.categoryId;
-  }
-
-  const expenses = await prisma.expense.findMany({
-    where,
-    include: {
-      category: true,
-    },
-    orderBy: {
-      date: "desc",
-    },
-  });
-
-  return expenses;
 }
 
-export async function createExpense(data: Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function createExpense(data: Tables['expenses']['Insert']) {
+  try {
+    // Create a clean object with proper database column names
+    const dbData: Record<string, any> = {};
+    
+    // Map common field names (handle both name/title)
+    dbData.user_id = data.user_id || data.userId;
+    dbData.category_id = data.category_id || data.categoryId;
+    dbData.name = data.name || data.title; // Handle both name and title
+    dbData.amount = data.amount;
+    dbData.currency = data.currency || 'USD';
+    dbData.date = data.date;
+    dbData.description = data.description;
+    dbData.receipt_url = data.receipt_url || data.receiptUrl;
+    dbData.created_at = data.created_at || new Date().toISOString();
+    dbData.updated_at = data.updated_at || new Date().toISOString();
+    
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    console.log('Creating expense with data:', dbData);
+
+    const { data: expense, error } = await supabaseAdmin
+      .from('expenses')
+      .insert(dbData)
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error("[createExpense] Error:", error);
+      throw error;
+    }
+
+    return expense;
+  } catch (error) {
+    console.error("[createExpense] Error:", error);
+    throw error;
   }
-
-  const expense = await prisma.expense.create({
-    data: {
-      ...data,
-      userId,
-    },
-    include: {
-      category: true,
-    },
-  });
-
-  return expense;
 }
 
-export async function updateExpense(id: string, data: Partial<Omit<Expense, "id" | "userId" | "createdAt" | "updatedAt">>) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function updateExpense(id: string, data: Tables['expenses']['Update']) {
+  try {
+    // Create a clean object with proper database column names
+    const dbData: Record<string, any> = {};
+    
+    // Only add fields that are provided
+    if (data.title || data.name) dbData.name = data.name || data.title;
+    if (data.amount) dbData.amount = data.amount;
+    if (data.currency) dbData.currency = data.currency;
+    if (data.date) dbData.date = data.date;
+    if (data.description !== undefined) dbData.description = data.description;
+    if (data.receipt_url || data.receiptUrl) dbData.receipt_url = data.receipt_url || data.receiptUrl;
+    if (data.category_id || data.categoryId) dbData.category_id = data.category_id || data.categoryId;
+    
+    // Always update the timestamp
+    dbData.updated_at = new Date().toISOString();
+    
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    console.log('Updating expense with data:', dbData);
+
+    const { data: expense, error } = await supabaseAdmin
+      .from('expenses')
+      .update(dbData)
+      .eq('id', id)
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error("[updateExpense] Error:", error);
+      throw error;
+    }
+
+    return expense;
+  } catch (error) {
+    console.error("[updateExpense] Error:", error);
+    throw error;
   }
-
-  const expense = await prisma.expense.update({
-    where: {
-      id,
-      userId,
-    },
-    data,
-    include: {
-      category: true,
-    },
-  });
-
-  return expense;
 }
 
-export async function deleteExpense(id: string) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function deleteExpense(userId: string, id: string) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+    
+    // Verify the expense belongs to the user
+    const { data: expense, error: checkError } = await supabaseAdmin
+      .from('expenses')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+      
+    if (checkError || !expense) {
+      console.error('[deleteExpense] Expense not found or access denied:', checkError);
+      throw new Error('Expense not found or access denied');
+    }
+
+    const { error } = await supabaseAdmin
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error("[deleteExpense] Error:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("[deleteExpense] Error:", error);
+    throw error;
   }
-
-  const expense = await prisma.expense.delete({
-    where: {
-      id,
-      userId,
-    },
-  });
-
-  return expense;
 }
 
 // Budgets
-export async function getBudgets() {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return [];
+export async function getBudgets(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('budgets')
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("[getBudgets] Error:", error);
+    throw error;
   }
-
-  const budgets = await prisma.budget.findMany({
-    where: {
-      userId,
-    },
-    include: {
-      category: true,
-    },
-  });
-
-  return budgets;
 }
 
-export async function createBudget(data: Omit<Budget, "id" | "userId" | "createdAt" | "updatedAt">) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function createBudget(data: Tables['budgets']['Insert']) {
+  try {
+    // Create a clean object with proper database column names
+    const dbData: Record<string, any> = {};
+    
+    // Map common field names
+    dbData.user_id = data.user_id || data.userId;
+    dbData.category_id = data.category_id || data.categoryId;
+    
+    // Handle name field - ensure it's not null/undefined
+    if (!data.name && !data.title) {
+      // Fetch the category name to use as part of the default budget name
+      const supabaseAdmin = createClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          auth: {
+            persistSession: false,
+          }
+        }
+      );
+      
+      const { data: category } = await supabaseAdmin
+        .from('categories')
+        .select('name')
+        .eq('id', dbData.category_id)
+        .single();
+        
+      // Create a default name based on the category and period
+      const period = data.period || 'monthly';
+      const categoryName = category?.name || 'Budget';
+      dbData.name = `${categoryName} ${period} budget`;
+    } else {
+      dbData.name = data.name || data.title;
+    }
+    
+    dbData.amount = data.amount;
+    dbData.currency = data.currency || 'USD';
+    dbData.start_date = data.start_date || data.startDate;
+    dbData.end_date = data.end_date || data.endDate;
+    dbData.period = data.period || 'monthly';
+    dbData.description = data.description;
+    dbData.created_at = data.created_at || new Date().toISOString();
+    dbData.updated_at = data.updated_at || new Date().toISOString();
+    
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    console.log('Creating budget with data:', dbData);
+
+    const { data: budget, error } = await supabaseAdmin
+      .from('budgets')
+      .insert(dbData)
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error("[createBudget] Error:", error);
+      throw error;
+    }
+
+    return budget;
+  } catch (error) {
+    console.error("[createBudget] Error:", error);
+    throw error;
   }
-
-  const budget = await prisma.budget.create({
-    data: {
-      ...data,
-      userId,
-    },
-    include: {
-      category: true,
-    },
-  });
-
-  return budget;
 }
 
-export async function updateBudget(id: string, data: Partial<Omit<Budget, "id" | "userId" | "createdAt" | "updatedAt">>) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function updateBudget(userId: string, id: string, data: Tables['budgets']['Update']) {
+  try {
+    // Create a clean object with proper database column names
+    const dbData: Record<string, any> = {};
+    
+    // Only add fields that are provided
+    if (data.name) dbData.name = data.name;
+    if (data.amount) dbData.amount = data.amount;
+    if (data.currency) dbData.currency = data.currency;
+    if (data.start_date || data.startDate) dbData.start_date = data.start_date || data.startDate;
+    if (data.end_date || data.endDate) dbData.end_date = data.end_date || data.endDate;
+    if (data.period) dbData.period = data.period;
+    if (data.description !== undefined) dbData.description = data.description;
+    if (data.category_id || data.categoryId) dbData.category_id = data.category_id || data.categoryId;
+    
+    // Always update the timestamp
+    dbData.updated_at = new Date().toISOString();
+    
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    console.log('Updating budget with data:', dbData);
+
+    const { data: budget, error } = await supabaseAdmin
+      .from('budgets')
+      .update(dbData)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error("[updateBudget] Error:", error);
+      throw error;
+    }
+
+    return budget;
+  } catch (error) {
+    console.error("[updateBudget] Error:", error);
+    throw error;
   }
-
-  const budget = await prisma.budget.update({
-    where: {
-      id,
-      userId,
-    },
-    data,
-    include: {
-      category: true,
-    },
-  });
-
-  return budget;
 }
 
-export async function deleteBudget(id: string) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return null;
+export async function deleteBudget(userId: string, id: string) {
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+    
+    // Verify the budget belongs to the user
+    const { data: budget, error: checkError } = await supabaseAdmin
+      .from('budgets')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+      
+    if (checkError || !budget) {
+      console.error('[deleteBudget] Budget not found or access denied:', checkError);
+      throw new Error('Budget not found or access denied');
+    }
+
+    const { error } = await supabaseAdmin
+      .from('budgets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error("[deleteBudget] Error:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("[deleteBudget] Error:", error);
+    throw error;
   }
-
-  const budget = await prisma.budget.delete({
-    where: {
-      id,
-      userId,
-    },
-  });
-
-  return budget;
 }
 
 // Analytics
-export async function getExpensesByCategory(startDate: Date, endDate: Date) {
-  const { userId } = auth();
-  
-  if (!userId) {
+export async function getExpensesByCategory(userId: string, startDate: string, endDate: string) {
+  try {
+    const { data: expenses, error } = await supabase
+      .from('expenses')
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (error) throw error;
+
+    // Group expenses by category
+    const expensesByCategory = expenses.reduce((acc, expense) => {
+      const categoryId = expense.category_id;
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          id: categoryId,
+          name: expense.category.name,
+          color: expense.category.color,
+          amount: 0,
+          expenses: []
+        };
+      }
+      acc[categoryId].amount += expense.amount;
+      acc[categoryId].expenses.push(expense);
+      return acc;
+    }, {} as Record<string, any>);
+
+    return Object.values(expensesByCategory);
+  } catch (error) {
+    console.error('[getExpensesByCategory] Error:', error);
     return [];
   }
+}
 
-  const expenses = await prisma.expense.findMany({
-    where: {
-      userId,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      category: true,
-    },
-  });
+export async function getExpensesByMonth(userId: string, startDate: string, endDate: string) {
+  try {
+    const { data, error } = await supabase
+      .from('expenses')
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
 
-  const categoryTotals: Record<string, { 
-    categoryId: string, 
-    name: string, 
-    color: string, 
-    total: number 
-  }> = {};
+    if (error) {
+      throw error;
+    }
 
-  for (const expense of expenses) {
-    const { categoryId, category, amount } = expense;
-    
-    if (!categoryTotals[categoryId]) {
-      categoryTotals[categoryId] = {
-        categoryId,
-        name: category.name,
-        color: category.color,
-        total: 0,
+    // Group expenses by month
+    const expensesByMonth = data.reduce((acc: any, expense) => {
+      const month = new Date(expense.date).toLocaleString('default', { month: 'long' });
+      if (!acc[month]) {
+        acc[month] = {
+          total: 0,
+          expenses: []
+        };
+      }
+      acc[month].total += expense.amount;
+      acc[month].expenses.push(expense);
+      return acc;
+    }, {});
+
+    return Object.entries(expensesByMonth).map(([month, data]: [string, any]) => ({
+      month,
+      total: data.total,
+      expenses: data.expenses
+    }));
+  } catch (error) {
+    console.error("[getExpensesByMonth] Error:", error);
+    throw error;
+  }
+}
+
+export async function getBudgetProgress(userId: string) {
+  try {
+    const [budgets, expenses] = await Promise.all([
+      getBudgets(userId),
+      getExpenses(userId)
+    ]);
+
+    return budgets.map(budget => {
+      const budgetExpenses = expenses.filter(e => e.category_id === budget.category_id);
+      const spent = budgetExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const remaining = budget.amount - spent;
+      const percentage = (spent / budget.amount) * 100;
+
+      return {
+        id: budget.id,
+        name: budget.name,
+        category: budget.category.name,
+        color: budget.category.color,
+        amount: budget.amount,
+        spent,
+        remaining,
+        percentage,
+        isOverBudget: spent > budget.amount
       };
-    }
-    
-    categoryTotals[categoryId].total += amount;
+    });
+  } catch (error) {
+    console.error("[getBudgetProgress] Error:", error);
+    throw error;
   }
-
-  return Object.values(categoryTotals);
 }
 
-export async function getMonthlyExpenses(year: number) {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return [];
-  }
+// Receipt Processing
+export async function processReceipt(userId: string, receiptData: any, filePath: string) {
+  try {
+    // First, check if we need to create a new category
+    let categoryId = null;
+    if (receiptData.suggestedCategory) {
+      // Try to find an existing category with the same name
+      const { data: existingCategory } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', receiptData.suggestedCategory)
+        .single();
 
-  const startDate = new Date(year, 0, 1);
-  const endDate = new Date(year, 11, 31);
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      } else {
+        // Create a new category
+        const { data: newCategory } = await supabase
+          .from('categories')
+          .insert([{
+            name: receiptData.suggestedCategory,
+            color: generateRandomColor(),
+            user_id: userId
+          }])
+          .select()
+          .single();
 
-  const expenses = await prisma.expense.findMany({
-    where: {
-      userId,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-  });
-
-  const monthlyTotals = Array(12).fill(0);
-
-  for (const expense of expenses) {
-    const month = expense.date.getMonth();
-    monthlyTotals[month] += expense.amount;
-  }
-
-  return monthlyTotals;
-}
-
-export async function getBudgetStatus() {
-  const { userId } = auth();
-  
-  if (!userId) {
-    return [];
-  }
-
-  const budgets = await prisma.budget.findMany({
-    where: {
-      userId,
-    },
-    include: {
-      category: true,
-    },
-  });
-
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const endOfYear = new Date(now.getFullYear(), 11, 31);
-
-  const result = [];
-
-  for (const budget of budgets) {
-    let startDate, endDate;
-
-    if (budget.period === "monthly") {
-      startDate = startOfMonth;
-      endDate = endOfMonth;
-    } else if (budget.period === "weekly") {
-      startDate = startOfWeek;
-      endDate = endOfWeek;
-    } else if (budget.period === "yearly") {
-      startDate = startOfYear;
-      endDate = endOfYear;
-    } else {
-      continue;
+        if (newCategory) {
+          categoryId = newCategory.id;
+        }
+      }
     }
 
-    const expenses = await prisma.expense.findMany({
-      where: {
-        userId,
-        categoryId: budget.categoryId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-    });
+    // Create the expense
+    const expenseData = {
+      title: receiptData.title || 'Receipt Expense',
+      amount: parseFloat(receiptData.amount) || 0,
+      currency: receiptData.currency || 'USD',
+      date: receiptData.date ? new Date(receiptData.date).toISOString() : new Date().toISOString(),
+      description: receiptData.description || '',
+      receipt_url: filePath,
+      category_id: categoryId,
+      user_id: userId
+    };
 
-    const spent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const remaining = budget.amount - spent;
-    const percentage = (spent / budget.amount) * 100;
+    const { data: expense, error } = await supabase
+      .from('expenses')
+      .insert([expenseData])
+      .select(`
+        *,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .single();
 
-    result.push({
-      budget,
-      spent,
-      remaining,
-      percentage,
-      isOverBudget: spent > budget.amount,
-    });
+    if (error) throw error;
+    return expense;
+  } catch (error) {
+    console.error('[processReceipt] Error:', error);
+    throw error;
   }
+}
 
-  return result;
+// Helper Functions
+function generateRandomColor(): string {
+  const colors = [
+    '#FF5733', // Red-Orange
+    '#33FF57', // Green
+    '#3357FF', // Blue
+    '#FF33F5', // Pink
+    '#F5FF33', // Yellow
+    '#33FFF5', // Cyan
+    '#FF3333', // Red
+    '#33FF33', // Lime
+    '#3333FF', // Deep Blue
+    '#FF33FF', // Magenta
+    '#FFFF33', // Yellow
+    '#33FFFF', // Aqua
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+export async function initializeUserCategories(userId: string) {
+  try {
+    // Check if user already has categories
+    const { data: existingCategories } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (existingCategories && existingCategories.length > 0) {
+      return; // User already has categories
+    }
+
+    // Create default categories for the user
+    const categoriesData = defaultCategories.map(category => ({
+      user_id: userId,
+      name: category.name,
+      color: category.color
+    }));
+
+    // Use service role client to bypass RLS
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
+    );
+
+    const { error } = await supabaseAdmin
+      .from('categories')
+      .insert(categoriesData);
+
+    if (error) {
+      console.error('[initializeUserCategories] Error:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('[initializeUserCategories] Error:', error);
+    throw error;
+  }
 }

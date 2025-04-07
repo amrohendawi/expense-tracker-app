@@ -1,17 +1,19 @@
 import { getUserSettingsAction } from "@/app/actions/settings-actions";
-import { CurrencyProvider } from "@/context/currency-context";
+import Providers from "@/components/providers";
+import CategoryInitializer from "@/components/category-initializer";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Get user settings server-side before rendering
-  const userSettings = await getUserSettingsAction();
-  
+  const userSettings = await getUserSettingsAction() || { currency: 'USD' };
+
   return (
-    <CurrencyProvider initialCurrency={userSettings.currency}>
+    <Providers currency={userSettings.currency}>
+      {/* Component that initializes categories client-side */}
+      <CategoryInitializer />
       {children}
-    </CurrencyProvider>
+    </Providers>
   );
 }

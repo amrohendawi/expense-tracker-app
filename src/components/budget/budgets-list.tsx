@@ -31,18 +31,22 @@ import { deleteBudgetAction, getBudgetsAction } from "@/app/actions/budget-actio
 import { getCategoriesAction } from "@/app/actions/expense-actions"
 
 interface BudgetWithCategory {
-  id: string
-  categoryId: string
-  amount: number
-  currency?: string
-  startDate: Date
-  endDate: Date
-  description?: string
-  period?: string
+  id: string;
+  categoryId?: string;
+  category_id?: string;
+  amount: number;
+  currency?: string;
+  startDate?: Date | string;
+  start_date?: string;
+  endDate?: Date | string;
+  end_date?: string;
+  description?: string;
+  period?: string;
+  name?: string;
   category: {
-    id: string
-    name: string
-    color: string
+    id: string;
+    name: string;
+    color: string;
   }
 }
 
@@ -153,11 +157,11 @@ export function BudgetsList() {
         <TableBody>
           {budgets.map((budget) => (
             <TableRow key={budget.id}>
-              <TableCell>{getCategoryName(budget.categoryId)}</TableCell>
+              <TableCell>{getCategoryName(budget.category_id || budget.categoryId)}</TableCell>
               <TableCell>{formatCurrency(budget.amount, budget.currency || "USD")}</TableCell>
               <TableCell>
-                {format(new Date(budget.startDate), "MMM d, yyyy")} -{" "}
-                {format(new Date(budget.endDate), "MMM d, yyyy")}
+                {budget.start_date ? format(new Date(budget.start_date), "MMM d, yyyy") : format(new Date(budget.startDate), "MMM d, yyyy")} -{" "}
+                {budget.end_date ? format(new Date(budget.end_date), "MMM d, yyyy") : format(new Date(budget.endDate), "MMM d, yyyy")}
               </TableCell>
               <TableCell>{budget.description || "—"}</TableCell>
               <TableCell className="text-right">

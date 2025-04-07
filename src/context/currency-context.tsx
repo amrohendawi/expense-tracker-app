@@ -26,7 +26,8 @@ export function CurrencyProvider({
     const loadSettings = async () => {
       try {
         const settings = await getUserSettingsAction();
-        if (settings.currency !== currency) {
+        // Check if settings exists and has a currency property before using it
+        if (settings && settings.currency && settings.currency !== currency) {
           setCurrency(settings.currency);
         }
       } catch (error) {

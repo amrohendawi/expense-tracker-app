@@ -1,108 +1,124 @@
-"use server"
+"use server";
 
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
-import { revalidatePath } from "next/cache"
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { 
+  initializeUserCategories, 
+  createCategory, 
+  updateCategory, 
+  deleteCategory, 
+  getCategories, 
+  supabase 
+} from "@/lib/db";
+import type { Tables } from "@/lib/db";
 
-export async function createCategoryAction(data: { name: string; color: string }) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
-  }
-
+export async function initializeCategoriesAction() {
   try {
-    const category = await prisma.category.create({
-      data: {
-        ...data,
-        userId,
-        icon: null, // Set icon to null since we're not using it
-      },
-    });
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
 
+    await initializeUserCategories(userId);
+    // Don't call revalidatePath during render
+    // The layout will already have the latest data
+  } catch (error) {
+    console.error("[initializeCategoriesAction] Error:", error);
+    throw error;
+  }
+}
+
+export async function getCategoriesAction() {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return [];
+    }
+
+    const categories = await getCategories(userId);
+    if (!categories || categories.length === 0) {
+      // If no categories exist, initialize them
+      await initializeUserCategories(userId);
+      return await getCategories(userId);
+    }
+
+    return categories;
+  } catch (error) {
+    console.error("[getCategoriesAction] Error:", error);
+    return [];
+  }
+}
+
+export async function createCategoryAction(data: {
+  name: string;
+  color: string;
+  icon?: string;
+}) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const category = await createCategory(userId, data);
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/categories");
     return { success: true, data: category };
   } catch (error) {
-    console.error("Error creating category:", error);
+    console.error("[createCategoryAction] Error:", error);
     return { success: false, error: "Failed to create category" };
   }
 }
 
-export async function updateCategoryAction(id: string, data: { name: string; color: string }) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
+export async function updateCategoryAction(
+  id: string, 
+  data: {
+    name?: string;
+    color?: string;
+    icon?: string;
   }
-
-  const category = await prisma.category.findUnique({
-    where: {
-      id,
-    },
-  });
-
-  if (!category || category.userId !== userId) {
-    return { success: false, error: "Category not found or access denied" };
-  }
-
+) {
   try {
-    const updatedCategory = await prisma.category.update({
-      where: {
-        id,
-      },
-      data,
-    });
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
 
+    // Verify category belongs to user
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    const updatedCategory = await updateCategory(userId, id, data);
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/categories");
     return { success: true, data: updatedCategory };
   } catch (error) {
-    console.error("Error updating category:", error);
+    console.error("[updateCategoryAction] Error:", error);
     return { success: false, error: "Failed to update category" };
   }
 }
 
 export async function deleteCategoryAction(id: string) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
-  }
-
-  const category = await prisma.category.findUnique({
-    where: {
-      id,
-    },
-  });
-
-  if (!category || category.userId !== userId) {
-    return { success: false, error: "Category not found or access denied" };
-  }
-
-  // Check if category is used by any expenses
-  const expenseCount = await prisma.expense.count({
-    where: {
-      categoryId: id,
-    },
-  });
-
-  if (expenseCount > 0) {
-    return { success: false, error: "Cannot delete category that is used by expenses" };
-  }
-
   try {
-    await prisma.category.delete({
-      where: {
-        id,
-      },
-    });
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
 
+    await deleteCategory(userId, id);
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/categories");
     return { success: true };
   } catch (error) {
-    console.error("Error deleting category:", error);
+    console.error("[deleteCategoryAction] Error:", error);
     return { success: false, error: "Failed to delete category" };
   }
 }

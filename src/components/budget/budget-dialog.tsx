@@ -46,6 +46,7 @@ type CategoryWithBasicInfo = {
 };
 
 const budgetFormSchema = z.object({
+  name: z.string().min(1, "Please enter a budget name"),
   amount: z.coerce.number().positive("Amount must be positive"),
   currency: z.string().min(1, "Please select a currency"),
   categoryId: z.string().min(1, "Please select a category"),
@@ -66,13 +67,17 @@ export function BudgetDialog({
   children: React.ReactNode
   budget?: {
     id: string
-    categoryId: string
+    categoryId?: string
+    category_id?: string
     amount: number
     currency?: string
-    startDate: Date
-    endDate: Date
+    startDate?: Date | string
+    start_date?: string
+    endDate?: Date | string
+    end_date?: string
     description?: string
     period?: string
+    name?: string
   }
   categories: CategoryWithBasicInfo[]
   onSuccess?: () => void
@@ -82,11 +87,14 @@ export function BudgetDialog({
   const currencyOptions = getCurrencyOptions();
 
   const defaultValues: Partial<BudgetFormValues> = {
+    name: budget?.name || "",
     amount: budget?.amount || 0,
     currency: budget?.currency || userPreferredCurrency,
-    categoryId: budget?.categoryId || "",
-    startDate: budget?.startDate ? new Date(budget.startDate) : new Date(),
-    endDate: budget?.endDate ? new Date(budget.endDate) : new Date(),
+    categoryId: budget?.categoryId || budget?.category_id || "",
+    startDate: budget?.startDate ? new Date(budget.startDate) : 
+              budget?.start_date ? new Date(budget.start_date) : new Date(),
+    endDate: budget?.endDate ? new Date(budget.endDate) : 
+            budget?.end_date ? new Date(budget.end_date) : new Date(),
     description: budget?.description || "",
     period: budget?.period || "monthly",
   }
@@ -145,6 +153,22 @@ export function BudgetDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Budget Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter a budget name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
