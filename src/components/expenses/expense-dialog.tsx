@@ -86,13 +86,13 @@ export function ExpenseDialog({
   // Set default values based on whether we're editing or creating
   const defaultValues: Partial<ExpenseFormValues> = expenseToEdit
     ? {
-        title: expenseToEdit.title,
+        title: expenseToEdit.name || expenseToEdit.title,
         amount: expenseToEdit.amount,
         currency: expenseToEdit.currency || userPreferredCurrency,
         date: new Date(expenseToEdit.date),
-        categoryId: expenseToEdit.categoryId,
+        categoryId: expenseToEdit.category_id || expenseToEdit.categoryId,
         description: expenseToEdit.description || "",
-        receiptUrl: expenseToEdit.receiptUrl || "",
+        receiptUrl: expenseToEdit.receipt_url || expenseToEdit.receiptUrl || "",
       }
     : {
         title: "",
@@ -124,6 +124,15 @@ export function ExpenseDialog({
   };
 
   const handleReceiptProcessed = (data: ReceiptData) => {
+    // Log what we received to help debug
+    console.log("Processing receipt data in expense dialog:", data);
+    
+    // Defensive handling - ensure data exists and has expected properties
+    if (!data) {
+      console.error("No receipt data received");
+      return;
+    }
+    
     // Update form with extracted data
     if (data.title) {
       form.setValue("title", data.title);
@@ -160,6 +169,12 @@ export function ExpenseDialog({
     } else if (data.vendor) {
       // Use vendor as description if no description is provided
       form.setValue("description", `Vendor: ${data.vendor}`);
+    }
+    
+    // Set currency if available
+    if (data.currency) {
+      console.log("Setting currency from receipt:", data.currency);
+      form.setValue("currency", data.currency);
     }
     
     // Save the receipt URL to state so it can be included in form submission

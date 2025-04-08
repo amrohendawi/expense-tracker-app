@@ -20,68 +20,31 @@ export type ReceiptInputType =
  * Format and validate receipt data from AI response
  */
 export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptData {
-  // Format the date to ensure YYYY-MM-DD format or null
-  if (extractedData.date) {
-    try {
-      // Try to parse and format the date
-      const dateObj = new Date(extractedData.date);
-      // Check if date is valid
-      if (!isNaN(dateObj.getTime())) {
-        // Format as YYYY-MM-DD and ensure it's not in the future
-        const today = new Date();
-        if (dateObj > today) {
-          extractedData.date = null;
-        } else {
-          extractedData.date = dateObj.toISOString().split('T')[0];
-        }
-      } else {
-        // Invalid date - set to null
-        extractedData.date = null;
-      }
-    } catch (error) {
-      console.log("Error parsing date:", error);
-      extractedData.date = null;
-    }
-  }
-
-  // Convert amount to number if it's a string
-  if (typeof extractedData.amount === 'string') {
-    extractedData.amount = parseFloat(extractedData.amount);
-    
-    // If parsing fails, set a default value
-    if (isNaN(extractedData.amount)) {
-      extractedData.amount = 0;
-    }
-  }
+  console.log("Formatting extracted data:", extractedData);
   
-  // Normalize and validate currency code - with enhanced logging for debugging
-  if (extractedData.currency) {
-    if (typeof extractedData.currency === 'string') {
-      // Convert to uppercase
-      const originalCurrency = extractedData.currency;
-      extractedData.currency = extractedData.currency.toUpperCase().trim();
-      
-      // Validate currency code against our supported list
-      const supportedCurrencies = getAllCurrencyCodes();
-      if (!supportedCurrencies.includes(extractedData.currency)) {
-        // Try to extract a valid currency code if possible
-        const matchedCurrency = supportedCurrencies.find(code => 
-          extractedData.currency?.includes(code)
-        );
-        extractedData.currency = matchedCurrency || 'USD';
-      }
-    } else {
-      // Not a string, set to default
-      extractedData.currency = 'USD';
-      console.info(`Invalid currency format, defaulting to USD`);
-    }
-  } else {
-    // No currency provided, set default
-    extractedData.currency = 'USD';
-    console.info(`No currency provided, defaulting to USD`);
-  }
-
-  return extractedData as ReceiptData;
+  // Apply defaults for required fields
+  const formattedData = {
+    // Required fields with defaults
+    title: extractedData.title || "Unknown Expense",
+    amount: typeof extractedData.amount === 'number' ? extractedData.amount : 
+            typeof extractedData.amount === 'string' ? parseFloat(extractedData.amount) : 0,
+    currency: extractedData.currency || "USD",
+    
+    // Handle optional fields with proper defaults
+    date: extractedData.date || null,
+    category: extractedData.category || "",
+    suggestedCategory: extractedData.suggestedCategory || null,
+    vendor: extractedData.vendor || null,
+    description: extractedData.description || null,
+    categoryId: extractedData.categoryId || null,
+    receiptUrl: extractedData.receiptUrl || null
+  };
+  
+  // Final validation to ensure the object is complete and valid
+  console.log("Formatted receipt data:", formattedData);
+  
+  // Cast to ReceiptData type
+  return formattedData as ReceiptData;
 }
 
 /**
@@ -89,18 +52,44 @@ export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptD
  */
 export function parseAIResponse(aiResponse: string): Partial<ReceiptData> {
   if (!aiResponse) {
+    console.error("Empty response from AI");
     throw new Error("Empty response from AI");
   }
 
-  // Parse the JSON response
+  // Extract JSON from the response - sometimes models add text before/after
   const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
   const jsonString = jsonMatch ? jsonMatch[0] : aiResponse;
   
+  console.log("Raw AI response:", aiResponse);
+  console.log("Extracted JSON string:", jsonString);
+  
   try {
-    return JSON.parse(jsonString);
+    const parsedData = JSON.parse(jsonString);
+    
+    // Ensure minimum required fields are present
+    if (!parsedData.title) {
+      console.error("Missing required field: title");
+      // Apply fallback value
+      parsedData.title = parsedData.vendor || "Expense";
+    }
+    
+    if (!parsedData.amount) {
+      console.error("Missing required field: amount");
+      // We can't really fallback the amount, but log it
+    }
+    
+    // Ensure currency has a default
+    if (!parsedData.currency) {
+      console.log("No currency detected, defaulting to USD");
+      parsedData.currency = "USD";
+    }
+    
+    console.log("Final parsed data:", parsedData);
+    return parsedData;
   } catch (error) {
     console.error("Error parsing AI response:", error);
-    throw new Error("Failed to parse AI response");
+    console.error("Raw response:", aiResponse);
+    throw new Error("Failed to parse AI response as JSON");
   }
 }
 
@@ -118,17 +107,26 @@ export function generateReceiptPrompt(options: {
   
   // Base prompt content that's shared between image and text formats
   const baseInstructions = `
-    - title (a short descriptive name for the expense)
-    - amount (just the number in positive form, no currency symbol)
-    - date (in YYYY-MM-DD format. If no date is found in the receipt, leave this field set to none)
-    - category (choose the most appropriate from this list: ${categories.join(", ")})
-    - suggestedCategory (if none of the existing categories match well, suggest a new category name)
-    - vendor (the merchant or service provider)
-    - description (any additional details)
-    - currency (identify the 3-letter currency code from these options: ${supportedCurrencies.join(", ")}. Look for currency either as code or symbol like $, €, £, ¥ etc.)
+    You must extract and return ONLY the following fields in a valid JSON object:
+    - title (string, REQUIRED): a short descriptive name for the expense
+    - amount (number, REQUIRED): just the number in positive form, no currency symbol
+    - date (string in YYYY-MM-DD format, or null if not found)
+    - category (string, REQUIRED): choose the most appropriate from this list: ${categories.join(", ")}
+    - suggestedCategory (string or null): if none of the existing categories match well, suggest a new category name
+    - vendor (string or null): the merchant or service provider
+    - description (string or null): any additional details
+    - currency (string, default to "USD"): identify the 3-letter currency code from these options: ${supportedCurrencies.join(", ")}
+    
+    YOUR RESPONSE MUST BE VALID JSON AND MUST CONTAIN AT MINIMUM:
+    {
+      "title": "string",
+      "amount": number,
+      "currency": "USD"
+    }
     
     Format your response as a valid JSON object with these fields.
-    Do not include any explanations, just the JSON.
+    DO NOT include any explanations or text outside the JSON object.
+    DO NOT use markdown formatting.
   `;
   
   // Generate the appropriate introduction based on input type

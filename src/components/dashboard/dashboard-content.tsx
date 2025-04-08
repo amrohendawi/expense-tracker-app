@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 export function DashboardContent({
   startDate,
+  endDate,
   initialExpenses,
   initialBudgetStatus,
   initialCategoryData
@@ -28,7 +29,9 @@ export function DashboardContent({
   const [categoryData, setCategoryData] = useState(initialCategoryData);
   
   // Convert the expenses to the user's currency and calculate totals
-  const totalExpenses = convertExpensesToCurrency(expenses, currency);
+  const totalExpenses = expenses.reduce((sum, expense) => {
+    return sum + convertCurrency(expense.amount, expense.currency || "USD", currency);
+  }, 0);
   
   // Convert budgets to user's currency
   const totalBudget = budgetStatus.reduce((sum, budget) => {
@@ -51,7 +54,8 @@ export function DashboardContent({
   useEffect(() => {
     // Create a map of expense totals by category
     const categoryExpenses = expenses.reduce((acc: Record<string, number>, expense: any) => {
-      const categoryId = expense.categoryId;
+      // Handle both camelCase and snake_case field names
+      const categoryId = expense.categoryId || expense.category_id;
       if (!categoryId) return acc;
       
       const amount = convertCurrency(expense.amount, expense.currency || "USD", currency);
@@ -61,6 +65,10 @@ export function DashboardContent({
     
     // Process each budget to calculate remaining amounts correctly
     const processedBudgetStatus = initialBudgetStatus.map((budget: any) => {
+      // Handle both camelCase and snake_case field names for category ID
+      const categoryId = budget.category_id || budget.categoryId || 
+                        (budget.category ? budget.category.id : null);
+      
       // Convert budget amount to user's currency
       const budgetAmount = convertCurrency(
         budget.amount, 
@@ -68,11 +76,7 @@ export function DashboardContent({
         currency
       );
       
-      // Calculate prorated budget amount based on period
-      let proratedAmount = budgetAmount;
-      
       // Get expenses for this category
-      const categoryId = budget.categoryId;
       const categoryExpenseTotal = categoryExpenses[categoryId] || 0;
       
       // Calculate remaining amount and percentage
@@ -81,6 +85,7 @@ export function DashboardContent({
       
       return {
         ...budget,
+        categoryId, // Ensure consistent field name
         spent: categoryExpenseTotal,
         remaining: remaining,
         percentage: percentage
@@ -210,7 +215,15 @@ export function DashboardContent({
             <CardTitle>Spending Over Time</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <SpendingChart expenses={expenses} convertToCurrency={currency} />
+            <SpendingChart 
+              expenses={expenses.map(expense => ({
+                ...expense,
+                // Pre-convert all amounts to the user's currency
+                amount: convertCurrency(expense.amount, expense.currency || "USD", currency),
+                currency: currency // Set all currencies to the user's preferred currency
+              }))} 
+              convertToCurrency={currency} 
+            />
           </CardContent>
         </Card>
         
@@ -219,7 +232,7 @@ export function DashboardContent({
             <CardTitle>Spending by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryDistribution data={categoryData} />
+            <CategoryDistribution data={categoryData} currency={currency} />
           </CardContent>
         </Card>
       </div>

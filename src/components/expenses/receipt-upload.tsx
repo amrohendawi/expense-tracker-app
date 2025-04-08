@@ -117,7 +117,8 @@ export function ReceiptUpload({ onReceiptProcessed }: ReceiptUploadProps) {
         throw new Error(errorData.error || "Failed to process receipt");
       }
 
-      const { data } = await response.json();
+      const data = await response.json();
+      console.log("Received from API:", data);
 
       setSuccess(true);
       toast({

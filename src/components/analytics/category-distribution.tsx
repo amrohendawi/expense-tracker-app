@@ -14,10 +14,13 @@ interface CategoryData {
 
 interface CategoryDistributionProps {
   data: CategoryData[];
+  currency?: string;
 }
 
-export function CategoryDistribution({ data }: CategoryDistributionProps) {
-  const { currency } = useCurrency();
+export function CategoryDistribution({ data, currency: propCurrency }: CategoryDistributionProps) {
+  // Use the passed currency prop or fall back to the user's preferred currency
+  const { currency: contextCurrency } = useCurrency();
+  const displayCurrency = propCurrency || contextCurrency;
 
   // Ensure we have data for the chart
   const chartData = data?.length > 0 ? data : [];
@@ -30,16 +33,16 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
     );
   }
 
-  const CustomTooltip = ({ active, payload }: { 
-    active?: boolean; 
-    payload?: Array<{ name: string; value: number; payload: { name: string; amount: number; color: string; percentage: number } }> 
+  const CustomTooltip = ({ active, payload }: {
+    active?: boolean;
+    payload?: Array<{ name: string; value: number; payload: { name: string; amount: number; color: string; percentage: number } }>
   }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">
           <p className="font-medium">{data.name}</p>
-          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount, currency)}</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount, displayCurrency)}</p>
           <p className="text-xs text-muted-foreground">{data.percentage}% of total</p>
         </div>
       );
@@ -101,7 +104,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
-          <Legend 
+          <Legend
             layout="vertical"
             verticalAlign="middle"
             align="right"
@@ -109,11 +112,15 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
               // Safe type cast with checks
               const payload = entry?.payload as unknown;
               // Check if payload has the expected structure
-              if (payload && typeof payload === 'object' && 'name' in payload && 'percentage' in payload) {
-                const categoryData = payload as { name: string; percentage?: number };
+              if (payload && typeof payload === 'object' && 'name' in payload && 'amount' in payload) {
+                const categoryData = payload as {
+                  name: string;
+                  amount: number;
+                  percentage?: number
+                };
                 return (
                   <span className="text-xs">
-                    {categoryData.name} ({categoryData.percentage?.toFixed(1) ?? '0.0'}%)
+                    {categoryData.name} ({formatCurrency(categoryData.amount, displayCurrency)})
                   </span>
                 );
               }

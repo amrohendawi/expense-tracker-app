@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { getExpensesByCategory, getExpensesByMonth, getBudgetProgress } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 export async function getExpensesByCategoryAction(startDate: Date, endDate: Date) {
   const { userId } = await auth();
@@ -28,7 +29,7 @@ export async function getExpensesByCategoryAction(startDate: Date, endDate: Date
     });
   } catch (error) {
     console.error("[getExpensesByCategoryAction] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }
 
@@ -57,7 +58,7 @@ export async function getMonthlyExpensesAction(year: number) {
     }));
   } catch (error) {
     console.error("[getMonthlyExpensesAction] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }
 
@@ -73,7 +74,7 @@ export async function getBudgetVsActualAction(startDate: Date, endDate: Date) {
     return result;
   } catch (error) {
     console.error("[getBudgetVsActualAction] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }
 
@@ -85,13 +86,42 @@ export async function getTopExpensesAction(limit: number = 5) {
   }
 
   try {
-    const expenses = await getExpensesByCategory(userId, '', '');
-    const topExpenses = expenses.reduce((acc, category) => acc.concat(category.expenses), []).sort((a, b) => b.amount - a.amount).slice(0, limit);
-
-    return topExpenses;
+    // Fetch expenses directly with all necessary fields including currency
+    const { data: expenses, error } = await supabase
+      .from('expenses')
+      .select(`
+        id,
+        name,
+        amount,
+        currency,
+        date,
+        description,
+        category_id,
+        category:categories (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('user_id', userId)
+      .order('amount', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    
+    // Transform the data to ensure consistent field naming
+    return expenses.map(expense => ({
+      id: expense.id,
+      title: expense.name, // Database field is 'name', map to 'title' for the component
+      amount: expense.amount,
+      currency: expense.currency || "USD", // Include currency info
+      date: expense.date,
+      description: expense.description,
+      category: expense.category
+    }));
   } catch (error) {
     console.error("[getTopExpensesAction] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }
 
@@ -106,6 +136,8 @@ export async function getExpenseTrendsAction() {
       averagePerDay: 0,
       mostExpensiveDay: { day: '', amount: 0 },
       mostExpensiveCategory: { name: '', amount: 0 },
+      thisCurrency: "USD",
+      lastCurrency: "USD"
     };
   }
 
@@ -121,12 +153,36 @@ export async function getExpenseTrendsAction() {
     const startOfLastMonth = new Date(currentYear, currentMonth - 1, 1);
     const endOfLastMonth = new Date(currentYear, currentMonth, 0);
 
-    // Get expenses for this month
-    const thisMonthExpenses = await getExpensesByMonth(userId, startOfThisMonth.toISOString(), endOfThisMonth.toISOString());
-
+    // Get expenses for this month - need to use direct DB access here for filtering
+    let thisMonthQuery = supabase
+      .from('expenses')
+      .select(`
+        *,
+        category:categories (id, name, color)
+      `)
+      .eq('user_id', userId)
+      .gte('date', startOfThisMonth.toISOString())
+      .lte('date', endOfThisMonth.toISOString());
+    
     // Get expenses for last month
-    const lastMonthExpenses = await getExpensesByMonth(userId, startOfLastMonth.toISOString(), endOfLastMonth.toISOString());
-
+    let lastMonthQuery = supabase
+      .from('expenses')
+      .select(`*`)
+      .eq('user_id', userId)
+      .gte('date', startOfLastMonth.toISOString())
+      .lte('date', endOfLastMonth.toISOString());
+    
+    const [thisMonthResult, lastMonthResult] = await Promise.all([
+      thisMonthQuery,
+      lastMonthQuery
+    ]);
+    
+    if (thisMonthResult.error) throw thisMonthResult.error;
+    if (lastMonthResult.error) throw lastMonthResult.error;
+    
+    const thisMonthExpenses = thisMonthResult.data || [];
+    const lastMonthExpenses = lastMonthResult.data || [];
+    
     // Calculate totals
     const totalThisMonth = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const totalLastMonth = lastMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -144,8 +200,12 @@ export async function getExpenseTrendsAction() {
     // Find most expensive day
     const expensesByDay: Record<string, number> = {};
     thisMonthExpenses.forEach(expense => {
-      const day = new Date(expense.date).toLocaleDateString('en-US', { weekday: 'long' });
-      expensesByDay[day] = (expensesByDay[day] || 0) + expense.amount;
+      try {
+        const day = new Date(expense.date).toLocaleDateString('en-US', { weekday: 'long' });
+        expensesByDay[day] = (expensesByDay[day] || 0) + expense.amount;
+      } catch (e) {
+        console.error("Error parsing date:", e);
+      }
     });
 
     let mostExpensiveDay = { day: '', amount: 0 };
@@ -158,14 +218,24 @@ export async function getExpenseTrendsAction() {
     // Find most expensive category
     const expensesByCategory: Record<string, { name: string, amount: number }> = {};
     thisMonthExpenses.forEach(expense => {
-      const { category, amount } = expense;
-      if (!expensesByCategory[category.id]) {
-        expensesByCategory[category.id] = { name: category.name, amount: 0 };
+      // Skip expenses without a valid category
+      if (!expense.category || !expense.category.id) {
+        return;
       }
-      expensesByCategory[category.id].amount += amount;
+      
+      const { category, amount } = expense;
+      const categoryId = category.id;
+      
+      if (!expensesByCategory[categoryId]) {
+        expensesByCategory[categoryId] = { 
+          name: category.name || 'Uncategorized', 
+          amount: 0 
+        };
+      }
+      expensesByCategory[categoryId].amount += amount;
     });
 
-    let mostExpensiveCategory = { name: '', amount: 0 };
+    let mostExpensiveCategory = { name: 'None', amount: 0 };
     Object.values(expensesByCategory).forEach(category => {
       if (category.amount > mostExpensiveCategory.amount) {
         mostExpensiveCategory = category;
@@ -179,10 +249,21 @@ export async function getExpenseTrendsAction() {
       averagePerDay,
       mostExpensiveDay,
       mostExpensiveCategory,
+      thisCurrency: "USD", // Add currency info for conversion
+      lastCurrency: "USD"
     };
   } catch (error) {
     console.error("[getExpenseTrendsAction] Error:", error);
-    throw error;
+    return {
+      totalThisMonth: 0,
+      totalLastMonth: 0,
+      percentChange: 0,
+      averagePerDay: 0,
+      mostExpensiveDay: { day: '', amount: 0 },
+      mostExpensiveCategory: { name: '', amount: 0 },
+      thisCurrency: "USD",
+      lastCurrency: "USD"
+    };
   }
 }
 
@@ -197,7 +278,7 @@ export async function getExpensesByMonthAction(startDate: Date, endDate: Date) {
     return expenses;
   } catch (error) {
     console.error("[getExpensesByMonthAction] Error:", error);
-    return [];
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }
 
@@ -212,6 +293,6 @@ export async function getBudgetProgressAction() {
     return progress;
   } catch (error) {
     console.error("[getBudgetProgressAction] Error:", error);
-    return [];
+    return []; // Return empty array instead of throwing to prevent page crashes
   }
 }

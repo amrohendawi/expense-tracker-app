@@ -57,7 +57,7 @@ export async function getUserSettings(userId: string) {
         }
       }
     );
-    
+
     const { data, error } = await supabaseAdmin
       .from('user_settings')
       .select('*')
@@ -93,7 +93,7 @@ async function createUserSettings(userId: string) {
         }
       }
     );
-    
+
     const defaultSettings = {
       user_id: userId,
       currency: 'USD',
@@ -105,25 +105,25 @@ async function createUserSettings(userId: string) {
       weekly_summary: true,
       dark_mode: false
     };
-    
+
     const { data, error } = await supabaseAdmin
       .from('user_settings')
       .insert([defaultSettings])
       .select()
       .single();
-      
+
     if (error) {
       console.error('[createUserSettings] Error:', error);
       throw error;
     }
-    
+
     return data;
   } catch (error) {
     console.error('[createUserSettings] Error:', error);
     // Return default settings as fallback
-    return { 
+    return {
       user_id: userId,
-      currency: 'USD', 
+      currency: 'USD',
       theme: 'light',
       language: 'English'
     };
@@ -142,19 +142,19 @@ export async function updateUserSettings(userId: string, data: Tables['user_sett
         }
       }
     );
-    
+
     // Check if settings exist first
     const { data: existingSettings } = await supabaseAdmin
       .from('user_settings')
       .select('id')
       .eq('user_id', userId)
       .single();
-      
+
     if (!existingSettings) {
       // If no settings exist, create them first
       return await createUserSettings(userId);
     }
-    
+
     // Update existing settings
     const { data: settings, error } = await supabaseAdmin
       .from('user_settings')
@@ -167,7 +167,7 @@ export async function updateUserSettings(userId: string, data: Tables['user_sett
       console.error('[updateUserSettings] Error:', error);
       throw error;
     }
-    
+
     return settings;
   } catch (error) {
     console.error('[updateUserSettings] Error:', error);
@@ -186,7 +186,7 @@ export async function getCategories(userId: string) {
 
     if (error) {
       console.error('[getCategories] Error:', error);
-      
+
       // If there's a permission error, try with admin client
       if (error.code === '42501') {
         console.log('[getCategories] Attempting with admin client due to permission error');
@@ -199,21 +199,21 @@ export async function getCategories(userId: string) {
             }
           }
         );
-        
+
         const { data: adminCategories, error: adminError } = await supabaseAdmin
           .from('categories')
           .select('*')
           .eq('user_id', userId)
           .order('name');
-          
+
         if (adminError) {
           console.error('[getCategories] Admin Error:', adminError);
           throw adminError;
         }
-        
+
         return adminCategories || [];
       }
-      
+
       throw error;
     }
 
@@ -247,7 +247,7 @@ export async function createCategory(userId: string, data: Tables['categories'][
       console.error('[createCategory] Error:', error);
       throw error;
     }
-    
+
     return category;
   } catch (error) {
     console.error('[createCategory] Error:', error);
@@ -280,7 +280,7 @@ export async function updateCategory(userId: string, id: string, data: Tables['c
       console.error('[updateCategory] Error:', error);
       throw error;
     }
-    
+
     return category;
   } catch (error) {
     console.error('[updateCategory] Error:', error);
@@ -378,7 +378,7 @@ export async function createExpense(data: Tables['expenses']['Insert']) {
   try {
     // Create a clean object with proper database column names
     const dbData: Record<string, any> = {};
-    
+
     // Map common field names (handle both name/title)
     dbData.user_id = data.user_id || data.userId;
     dbData.category_id = data.category_id || data.categoryId;
@@ -390,7 +390,7 @@ export async function createExpense(data: Tables['expenses']['Insert']) {
     dbData.receipt_url = data.receipt_url || data.receiptUrl;
     dbData.created_at = data.created_at || new Date().toISOString();
     dbData.updated_at = data.updated_at || new Date().toISOString();
-    
+
     // Use admin client to bypass RLS
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -433,7 +433,7 @@ export async function updateExpense(id: string, data: Tables['expenses']['Update
   try {
     // Create a clean object with proper database column names
     const dbData: Record<string, any> = {};
-    
+
     // Only add fields that are provided
     if (data.title || data.name) dbData.name = data.name || data.title;
     if (data.amount) dbData.amount = data.amount;
@@ -442,10 +442,10 @@ export async function updateExpense(id: string, data: Tables['expenses']['Update
     if (data.description !== undefined) dbData.description = data.description;
     if (data.receipt_url || data.receiptUrl) dbData.receipt_url = data.receipt_url || data.receiptUrl;
     if (data.category_id || data.categoryId) dbData.category_id = data.category_id || data.categoryId;
-    
+
     // Always update the timestamp
     dbData.updated_at = new Date().toISOString();
-    
+
     // Use admin client to bypass RLS
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -497,7 +497,7 @@ export async function deleteExpense(userId: string, id: string) {
         }
       }
     );
-    
+
     // Verify the expense belongs to the user
     const { data: expense, error: checkError } = await supabaseAdmin
       .from('expenses')
@@ -505,7 +505,7 @@ export async function deleteExpense(userId: string, id: string) {
       .eq('id', id)
       .eq('user_id', userId)
       .single();
-      
+
     if (checkError || !expense) {
       console.error('[deleteExpense] Expense not found or access denied:', checkError);
       throw new Error('Expense not found or access denied');
@@ -557,11 +557,11 @@ export async function createBudget(data: Tables['budgets']['Insert']) {
   try {
     // Create a clean object with proper database column names
     const dbData: Record<string, any> = {};
-    
+
     // Map common field names
     dbData.user_id = data.user_id || data.userId;
     dbData.category_id = data.category_id || data.categoryId;
-    
+
     // Handle name field - ensure it's not null/undefined
     if (!data.name && !data.title) {
       // Fetch the category name to use as part of the default budget name
@@ -574,13 +574,13 @@ export async function createBudget(data: Tables['budgets']['Insert']) {
           }
         }
       );
-      
+
       const { data: category } = await supabaseAdmin
         .from('categories')
         .select('name')
         .eq('id', dbData.category_id)
         .single();
-        
+
       // Create a default name based on the category and period
       const period = data.period || 'monthly';
       const categoryName = category?.name || 'Budget';
@@ -588,7 +588,7 @@ export async function createBudget(data: Tables['budgets']['Insert']) {
     } else {
       dbData.name = data.name || data.title;
     }
-    
+
     dbData.amount = data.amount;
     dbData.currency = data.currency || 'USD';
     dbData.start_date = data.start_date || data.startDate;
@@ -597,7 +597,7 @@ export async function createBudget(data: Tables['budgets']['Insert']) {
     dbData.description = data.description;
     dbData.created_at = data.created_at || new Date().toISOString();
     dbData.updated_at = data.updated_at || new Date().toISOString();
-    
+
     // Use admin client to bypass RLS
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -640,7 +640,7 @@ export async function updateBudget(userId: string, id: string, data: Tables['bud
   try {
     // Create a clean object with proper database column names
     const dbData: Record<string, any> = {};
-    
+
     // Only add fields that are provided
     if (data.name) dbData.name = data.name;
     if (data.amount) dbData.amount = data.amount;
@@ -650,10 +650,10 @@ export async function updateBudget(userId: string, id: string, data: Tables['bud
     if (data.period) dbData.period = data.period;
     if (data.description !== undefined) dbData.description = data.description;
     if (data.category_id || data.categoryId) dbData.category_id = data.category_id || data.categoryId;
-    
+
     // Always update the timestamp
     dbData.updated_at = new Date().toISOString();
-    
+
     // Use admin client to bypass RLS
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -706,7 +706,7 @@ export async function deleteBudget(userId: string, id: string) {
         }
       }
     );
-    
+
     // Verify the budget belongs to the user
     const { data: budget, error: checkError } = await supabaseAdmin
       .from('budgets')
@@ -714,7 +714,7 @@ export async function deleteBudget(userId: string, id: string) {
       .eq('id', id)
       .eq('user_id', userId)
       .single();
-      
+
     if (checkError || !budget) {
       console.error('[deleteBudget] Budget not found or access denied:', checkError);
       throw new Error('Budget not found or access denied');
@@ -739,7 +739,7 @@ export async function deleteBudget(userId: string, id: string) {
 // Analytics
 export async function getExpensesByCategory(userId: string, startDate: string, endDate: string) {
   try {
-    const { data: expenses, error } = await supabase
+    let query = supabase
       .from('expenses')
       .select(`
         *,
@@ -749,9 +749,18 @@ export async function getExpensesByCategory(userId: string, startDate: string, e
           color
         )
       `)
-      .eq('user_id', userId)
-      .gte('date', startDate)
-      .lte('date', endDate);
+      .eq('user_id', userId);
+
+    // Only add date filters if valid dates are provided
+    if (startDate && startDate !== '') {
+      query = query.gte('date', startDate);
+    }
+
+    if (endDate && endDate !== '') {
+      query = query.lte('date', endDate);
+    }
+
+    const { data: expenses, error } = await query;
 
     if (error) throw error;
 
@@ -825,34 +834,55 @@ export async function getExpensesByMonth(userId: string, startDate: string, endD
   }
 }
 
-export async function getBudgetProgress(userId: string) {
+export async function getBudgetProgress(userId: string, startDate?: string, endDate?: string) {
   try {
-    const [budgets, expenses] = await Promise.all([
-      getBudgets(userId),
-      getExpenses(userId)
-    ]);
+    // Get all budgets for the user
+    const budgets = await getBudgets(userId);
 
+    // Get expenses with date filtering if provided
+    let expensesQuery = supabase
+      .from('expenses')
+      .select(`
+        *,
+        category:categories (id, name, color)
+      `)
+      .eq('user_id', userId);
+
+    // Apply date filters if provided
+    if (startDate && startDate !== '') {
+      expensesQuery = expensesQuery.gte('date', startDate);
+    }
+
+    if (endDate && endDate !== '') {
+      expensesQuery = expensesQuery.lte('date', endDate);
+    }
+
+    const { data: expenses, error } = await expensesQuery;
+
+    if (error) throw error;
+
+    // If no budgets, return empty array
+    if (budgets.length === 0) {
+      return [];
+    }
+
+    // Map budgets to the format expected by the chart
     return budgets.map(budget => {
       const budgetExpenses = expenses.filter(e => e.category_id === budget.category_id);
       const spent = budgetExpenses.reduce((sum, e) => sum + e.amount, 0);
-      const remaining = budget.amount - spent;
-      const percentage = (spent / budget.amount) * 100;
 
       return {
-        id: budget.id,
-        name: budget.name,
         category: budget.category.name,
+        budget: budget.amount,
+        actual: spent,
         color: budget.category.color,
-        amount: budget.amount,
-        spent,
-        remaining,
-        percentage,
-        isOverBudget: spent > budget.amount
+        budgetCurrency: budget.currency || "USD",
+        actualCurrency: "USD" // Assuming expenses are in USD
       };
     });
   } catch (error) {
     console.error("[getBudgetProgress] Error:", error);
-    throw error;
+    return [];
   }
 }
 

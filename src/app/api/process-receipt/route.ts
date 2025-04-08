@@ -35,9 +35,11 @@ export async function POST(request: NextRequest) {
     let receiptData;
 
     if (fileType === 'application/pdf') {
-      receiptData = await processPdfReceipt(receiptFile, categories || []);
+      const result = await processPdfReceipt(receiptFile, categories || []);
+      receiptData = result.data; // Extract just the data part
     } else if (fileType.startsWith('image/')) {
-      receiptData = await processImageReceipt(receiptFile, categories || []);
+      const result = await processImageReceipt(receiptFile, categories || []);
+      receiptData = result.data; // Extract just the data part
     } else {
       return NextResponse.json(
         { error: "Unsupported file type" },
@@ -45,16 +47,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate receipt data
-    const validatedData = receiptDataSchema.safeParse(receiptData);
+    // Add detailed logging before validation
+    console.log("Receipt data before validation:", JSON.stringify(receiptData, null, 2));
+    console.log("Receipt data type:", typeof receiptData);
+    console.log("Has title:", receiptData?.title !== undefined);
+    console.log("Has amount:", receiptData?.amount !== undefined);
+    
+    // Ensure object has the expected structure - create a clean object to validate
+    const cleanData = {
+      title: receiptData?.title || "Untitled",
+      amount: typeof receiptData?.amount === 'number' ? receiptData.amount : 0,
+      date: receiptData?.date || null,
+      category: receiptData?.category || null,
+      suggestedCategory: receiptData?.suggestedCategory || null,
+      vendor: receiptData?.vendor || null,
+      description: receiptData?.description || null,
+      currency: receiptData?.currency || "USD",
+      categoryId: receiptData?.categoryId || null,
+      receiptUrl: receiptData?.filePath || null // Use filePath as receiptUrl if available
+    };
+    
+    console.log("Clean data for validation:", JSON.stringify(cleanData, null, 2));
+    
+    // Validate receipt data with the clean object
+    const validatedData = receiptDataSchema.safeParse(cleanData);
     if (!validatedData.success) {
+      console.error("Zod validation failed:", validatedData.error.format());
+      
+      // If still failing, return error with details
       return NextResponse.json(
-        { error: "Invalid receipt data", details: validatedData.error },
+        { error: "Invalid receipt data", details: validatedData.error.format() },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(validatedData.data);
+    // Successful validation - add the original file path to the response
+    const result = {
+      ...validatedData.data,
+      // Preserve the receipt file path from the original processing
+      receiptUrl: receiptData.filePath || validatedData.data.receiptUrl
+    };
+
+    console.log("Returning validated receipt data:", JSON.stringify(result, null, 2));
+    return NextResponse.json(result);
   } catch (error) {
     console.error("[process-receipt] Error:", error);
     return NextResponse.json(

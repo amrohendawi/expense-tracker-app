@@ -16,6 +16,7 @@ interface BudgetStatus {
     color: string;
   };
   spent: number;
+  spentCurrency?: string;
   remaining: number;
   percentage: number;
   color?: string;
@@ -42,16 +43,33 @@ export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetO
   // Convert budget amounts to target currency
   const convertedBudgetStatus = useMemo(() => {
     return budgetStatus.map(item => {
-      // Assuming budget amounts are in USD
-      const budgetAmount = convertCurrency(item.budget?.amount || item.amount, "USD", targetCurrency);
-      const spentAmount = convertCurrency(item.spent, "USD", targetCurrency);
+      // Get currency info from the budget data
+      const budgetCurrency = item.currency || "USD";
+      const spentCurrency = item.spentCurrency || budgetCurrency || "USD";
+      
+      // Convert amounts to target currency
+      const budgetAmount = convertCurrency(
+        item.budget?.amount || item.amount, 
+        budgetCurrency, 
+        targetCurrency
+      );
+      
+      const spentAmount = convertCurrency(
+        item.spent, 
+        spentCurrency, 
+        targetCurrency
+      );
+      
+      // Calculate derived values in the target currency
       const remainingAmount = budgetAmount - spentAmount;
       const percentage = budgetAmount > 0 ? Math.min((spentAmount / budgetAmount) * 100, 100) : 0;
       
       return {
         ...item,
         amount: budgetAmount,
+        currency: targetCurrency, // Ensure we store the converted currency
         spent: spentAmount,
+        spentCurrency: targetCurrency, // Ensure we store the converted currency
         remaining: remainingAmount,
         percentage
       };

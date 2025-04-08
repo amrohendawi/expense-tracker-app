@@ -19,69 +19,73 @@ interface SpendingChartProps {
 export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "USD" }: SpendingChartProps) {
   const [expenses, setExpenses] = useState(initialExpenses);
   const searchParams = useSearchParams();
-  
+
+  // Explicitly create converted data for the chart
+  const [convertedData, setConvertedData] = useState<Array<{ day: number, amount: number }>>([]);
+
   // Re-fetch expenses when the URL params change
   useEffect(() => {
     const fetchExpenses = async () => {
-      const year = searchParams.get('year') 
-        ? parseInt(searchParams.get('year')!) 
+      const year = searchParams.get('year')
+        ? parseInt(searchParams.get('year')!)
         : new Date().getFullYear();
-        
-      const month = searchParams.get('month') 
-        ? parseInt(searchParams.get('month')!) 
+
+      const month = searchParams.get('month')
+        ? parseInt(searchParams.get('month')!)
         : new Date().getMonth();
-      
+
       // Calculate date range based on the URL parameters
       const startOfMonth = new Date(year, month, 1);
       const endOfMonth = new Date(year, month + 1, 0);
-      
+
       try {
-        const updatedExpenses = await getExpensesAction({ 
-          startDate: startOfMonth, 
-          endDate: endOfMonth 
+        const updatedExpenses = await getExpensesAction({
+          startDate: startOfMonth,
+          endDate: endOfMonth
         });
         setExpenses(updatedExpenses);
       } catch (error) {
         console.error("Failed to fetch expenses:", error);
       }
     };
-    
+
     fetchExpenses();
   }, [searchParams]);
-  
+
   // Group expenses by day and convert currencies
-  const chartData = useMemo(() => {
+  useEffect(() => {
     if (!expenses || expenses.length === 0) {
-      return [];
+      setConvertedData([]);
+      return;
     }
 
     // Create a map to store total amount for each day
     const dailyTotals = new Map<string, number>();
-    
+
     // Process each expense
     expenses.forEach(expense => {
       const date = new Date(expense.date);
       const day = date.getDate();
       const key = day.toString();
-      
+
       // Convert currency if needed
       const expenseCurrency = expense.currency || "USD";
       const amount = convertCurrency(expense.amount, expenseCurrency, convertToCurrency);
-      
+
       // Add to daily total
       const currentTotal = dailyTotals.get(key) || 0;
       dailyTotals.set(key, currentTotal + amount);
     });
-    
+
     // Convert the map to an array for the chart
     if (expenses.length > 0) {
       const firstDate = new Date(expenses[0].date);
       const daysInMonth = new Date(
         firstDate.getFullYear(),
-        firstDate.getMonth() + 1, 
+        firstDate.getMonth() + 1,
         0
       ).getDate();
-      
+
       // Create data points for each day of the month
       const data = [];
       for (let i = 1; i <= daysInMonth; i++) {
@@ -90,11 +94,9 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
           amount: dailyTotals.get(i.toString()) || 0,
         });
       }
-      
-      return data;
+
+      setConvertedData(data);
     }
-    
-    return [];
   }, [expenses, convertToCurrency]);
 
   if (!expenses || expenses.length === 0) {
@@ -122,7 +124,7 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData}>
+        <BarChart data={convertedData}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="day" />
           <YAxis

@@ -12,11 +12,12 @@ interface Expense {
     name: string;
     color: string;
   };
+  currency?: string;
 }
 
 export function TopExpenses({ expenses }: { expenses: Expense[] }) {
-  const { currency } = useCurrency();
-  
+  const { currency: userPreferredCurrency } = useCurrency();
+
   return (
     <div className="space-y-6">
       {expenses.length === 0 ? (
@@ -30,8 +31,8 @@ export function TopExpenses({ expenses }: { expenses: Expense[] }) {
               <p className="font-medium">{expense.title}</p>
               <div className="flex items-center gap-2 mt-1">
                 {expense.category && (
-                  <div 
-                    className="w-3 h-3 rounded-full" 
+                  <div
+                    className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: expense.category.color }}
                   />
                 )}
@@ -40,7 +41,9 @@ export function TopExpenses({ expenses }: { expenses: Expense[] }) {
                 </p>
               </div>
             </div>
-            <p className="font-semibold">{formatCurrency(expense.amount, currency)}</p>
+            <p className="font-semibold">
+              {formatCurrency(expense.amount, expense.currency || userPreferredCurrency)}
+            </p>
           </div>
         ))
       )}
