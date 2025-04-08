@@ -85,13 +85,23 @@ export async function getTopExpensesAction(limit: number = 5) {
   }
 
   try {
-    const expenses = await getExpensesByCategory(userId, '', '');
-    const topExpenses = expenses.reduce((acc, category) => acc.concat(category.expenses), []).sort((a, b) => b.amount - a.amount).slice(0, limit);
+    // Provide valid ISO date strings instead of empty strings
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const startDate = oneYearAgo.toISOString();
+    const endDate = new Date().toISOString();
+    
+    const expenses = await getExpensesByCategory(userId, startDate, endDate);
+    const topExpenses = expenses
+      .reduce((acc, category) => acc.concat(category.expenses || []), [])
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, limit);
 
     return topExpenses;
   } catch (error) {
     console.error("[getTopExpensesAction] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent page errors
   }
 }
 
@@ -144,6 +154,9 @@ export async function getExpenseTrendsAction() {
     // Find most expensive day
     const expensesByDay: Record<string, number> = {};
     thisMonthExpenses.forEach(expense => {
+      // Handle potential undefined or null date
+      if (!expense.date) return;
+      
       const day = new Date(expense.date).toLocaleDateString('en-US', { weekday: 'long' });
       expensesByDay[day] = (expensesByDay[day] || 0) + expense.amount;
     });
@@ -158,11 +171,25 @@ export async function getExpenseTrendsAction() {
     // Find most expensive category
     const expensesByCategory: Record<string, { name: string, amount: number }> = {};
     thisMonthExpenses.forEach(expense => {
-      const { category, amount } = expense;
-      if (!expensesByCategory[category.id]) {
-        expensesByCategory[category.id] = { name: category.name, amount: 0 };
+      // Handle possible undefined category
+      if (!expense.category) {
+        // Add to "Uncategorized" if category is missing
+        const uncategorizedId = 'uncategorized';
+        if (!expensesByCategory[uncategorizedId]) {
+          expensesByCategory[uncategorizedId] = { name: 'Uncategorized', amount: 0 };
+        }
+        expensesByCategory[uncategorizedId].amount += expense.amount;
+        return;
       }
-      expensesByCategory[category.id].amount += amount;
+      
+      // Handle both camelCase and snake_case naming conventions for compatibility
+      const categoryId = expense.category.id || expense.category_id || 'unknown';
+      const categoryName = expense.category.name || 'Unknown';
+      
+      if (!expensesByCategory[categoryId]) {
+        expensesByCategory[categoryId] = { name: categoryName, amount: 0 };
+      }
+      expensesByCategory[categoryId].amount += expense.amount;
     });
 
     let mostExpensiveCategory = { name: '', amount: 0 };
@@ -182,7 +209,15 @@ export async function getExpenseTrendsAction() {
     };
   } catch (error) {
     console.error("[getExpenseTrendsAction] Error:", error);
-    throw error;
+    // Return default values instead of throwing to prevent page errors
+    return {
+      totalThisMonth: 0,
+      totalLastMonth: 0,
+      percentChange: 0,
+      averagePerDay: 0,
+      mostExpensiveDay: { day: '', amount: 0 },
+      mostExpensiveCategory: { name: '', amount: 0 },
+    };
   }
 }
 

@@ -133,6 +133,12 @@ export function ExpenseDialog({
       form.setValue("amount", data.amount);
     }
 
+    // Set currency if provided
+    if (data.currency) {
+      form.setValue("currency", data.currency);
+      console.log(`Setting currency from receipt: ${data.currency}`);
+    }
+
     // Parse the date string to a Date object
     if (data.date) {
       try {

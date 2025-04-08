@@ -71,7 +71,7 @@ export async function processImageWithAI(base64Image: string, categories: string
         content: [
           {
             type: "text",
-            text: "Extract the information from this receipt according to the specified format.",
+            text: "Extract the information from this receipt according to the specified format. IMPORTANT: Make sure to include at minimum a title and amount in your response, even if they need to be guesses based on the image content. If no amount can be seen, use 1 as default. If no title can be determined, use 'Unnamed Receipt' as default.",
           },
           {
             type: "image_url",

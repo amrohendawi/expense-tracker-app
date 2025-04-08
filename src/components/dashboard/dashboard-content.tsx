@@ -1,8 +1,7 @@
 "use client"
 
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDownRight, ArrowUpRight, DollarSign, TrendingUp, Wallet } from "lucide-react";
+import { ArrowUpRight, DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency, convertCurrency, convertExpensesToCurrency } from "@/lib/utils";
 import { BudgetOverview } from "@/components/budget/budget-overview";
 import { SpendingChart } from "@/components/analytics/spending-chart";
@@ -12,20 +11,35 @@ import { useEffect, useState } from "react";
 
 export function DashboardContent({
   startDate,
+  endDate,
   initialExpenses,
   initialBudgetStatus,
-  initialCategoryData
+  initialCategoryData,
+  initialCurrency
 }: {
   startDate: Date;
   endDate: Date;
   initialExpenses: any[];
   initialBudgetStatus: any[];
   initialCategoryData: any[];
+  initialCurrency?: string;
 }) {
-  const { currency } = useCurrency();
+  // Use initialCurrency as the default value but allow context updates
+  const { currency, setCurrency } = useCurrency();
   const [expenses] = useState(initialExpenses);
   const [budgetStatus, setBudgetStatus] = useState(initialBudgetStatus);
   const [categoryData, setCategoryData] = useState(initialCategoryData);
+  
+  // Initialize with server-provided currency preference
+  useEffect(() => {
+    if (initialCurrency && initialCurrency !== currency) {
+      console.log(`Setting currency from server preference: ${initialCurrency}`);
+      setCurrency(initialCurrency);
+    }
+  }, [initialCurrency, setCurrency]);
+  
+  // Log user's currency preference for debugging
+  console.log(`DashboardContent rendering with currency: ${currency}, initialCurrency: ${initialCurrency}`);
   
   // Convert the expenses to the user's currency and calculate totals
   const totalExpenses = convertExpensesToCurrency(expenses, currency);
@@ -50,40 +64,71 @@ export function DashboardContent({
   // Process budget status for accurate remaining calculations
   useEffect(() => {
     // Create a map of expense totals by category
-    const categoryExpenses = expenses.reduce((acc: Record<string, number>, expense: any) => {
-      const categoryId = expense.categoryId;
+    const categoryExpenses = expenses.reduce((acc: Record<string, {total: number, currency: string}[]>, expense: any) => {
+      const categoryId = expense.categoryId || expense.category_id;
       if (!categoryId) return acc;
       
-      const amount = convertCurrency(expense.amount, expense.currency || "USD", currency);
-      acc[categoryId] = (acc[categoryId] || 0) + amount;
+      // Store the original expense amount and currency
+      if (!acc[categoryId]) {
+        acc[categoryId] = [];
+      }
+      
+      // Add expense with its original currency
+      acc[categoryId].push({
+        total: expense.amount,
+        currency: expense.currency || "USD"
+      });
+      
       return acc;
     }, {});
     
     // Process each budget to calculate remaining amounts correctly
     const processedBudgetStatus = initialBudgetStatus.map((budget: any) => {
-      // Convert budget amount to user's currency
-      const budgetAmount = convertCurrency(
-        budget.amount, 
-        budget.currency || "USD", 
-        currency
-      );
+      // Get budget details
+      const budgetCurrency = budget.currency || "USD";
+      const categoryId = budget.categoryId || budget.category_id;
       
-      // Calculate prorated budget amount based on period
-      let proratedAmount = budgetAmount;
+      // This is the raw budget amount in its original currency
+      const budgetAmount = budget.amount;
       
-      // Get expenses for this category
-      const categoryId = budget.categoryId;
-      const categoryExpenseTotal = categoryExpenses[categoryId] || 0;
+      // Convert each expense to the budget's currency and sum them
+      const categoryExpenseArray = categoryExpenses[categoryId] || [];
+      const categoryExpenseTotal = categoryExpenseArray.reduce((sum, expense) => {
+        // Convert expense to budget currency
+        const convertedAmount = convertCurrency(
+          expense.total, 
+          expense.currency, 
+          budgetCurrency
+        );
+        return sum + convertedAmount;
+      }, 0);
       
-      // Calculate remaining amount and percentage
+      // Calculate remaining amount in the budget's currency
       const remaining = budgetAmount - categoryExpenseTotal;
-      const percentage = budgetAmount > 0 ? Math.min((categoryExpenseTotal / budgetAmount) * 100, 100) : 0;
+      const percentage = budgetAmount > 0 
+        ? Math.min((categoryExpenseTotal / budgetAmount) * 100, 100) 
+        : 0;
+      
+      console.log(`Budget ${budget.name}: ${formatCurrency(budgetAmount, budgetCurrency)}, Spent: ${formatCurrency(categoryExpenseTotal, budgetCurrency)}, Remaining: ${formatCurrency(remaining, budgetCurrency)}`);
+      
+      // For user display in UI, convert everything to user's preferred currency
+      const budgetInUserCurrency = convertCurrency(budgetAmount, budgetCurrency, currency);
+      const spentInUserCurrency = convertCurrency(categoryExpenseTotal, budgetCurrency, currency);
+      const remainingInUserCurrency = budgetInUserCurrency - spentInUserCurrency;
       
       return {
         ...budget,
-        spent: categoryExpenseTotal,
-        remaining: remaining,
-        percentage: percentage
+        // Original currency values (for calculations)
+        originalAmount: budgetAmount,
+        originalCurrency: budgetCurrency,
+        originalSpent: categoryExpenseTotal,
+        originalRemaining: remaining,
+        // Converted values for display
+        amount: budgetInUserCurrency,
+        spent: spentInUserCurrency,
+        remaining: remainingInUserCurrency,
+        percentage: percentage,
+        isOverBudget: remaining < 0
       };
     });
     
@@ -119,9 +164,9 @@ export function DashboardContent({
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      {/* Overview Cards */}
+      {/* Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card key="total-expenses">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Expenses
@@ -129,97 +174,86 @@ export function DashboardContent({
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, currency)}</div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(totalExpenses, currency)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {startDate.toLocaleString('default', { month: 'long' })} {startDate.getFullYear()}
+              For {new Date(startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </p>
           </CardContent>
         </Card>
-        
-        <Card>
+        <Card key="total-budget">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Budget
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalBudget, currency)}</div>
             <p className="text-xs text-muted-foreground">
-              Monthly Budget
+              Allocated for this period
             </p>
           </CardContent>
         </Card>
-        
-        <Card>
+        <Card key="remaining-budget">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Remaining Budget
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalRemaining < 0 ? 'text-red-500' : ''}`}>
-              {formatCurrency(totalRemaining, currency)}
-            </div>
-            <div className="flex items-center pt-1">
-              {totalRemaining < 0 ? (
-                <>
-                  <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
-                  <span className="text-xs text-red-500">Over budget</span>
-                </>
-              ) : (
-                <>
-                  <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
-                  <span className="text-xs text-green-500">Under budget</span>
-                </>
-              )}
-            </div>
+            <div className="text-2xl font-bold">{formatCurrency(totalRemaining, currency)}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalRemaining >= 0 ? "Available to spend" : "Over budget"}
+            </p>
           </CardContent>
         </Card>
-        
-        <Card>
+        <Card key="budget-utilization">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Budget Utilization
             </CardTitle>
-            <div className="h-4 w-4 text-muted-foreground">%</div>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalBudget > 0 ? Math.round((totalExpenses / totalBudget) * 100) : 0}%
+              {totalBudget > 0 
+                ? `${Math.min(Math.round((totalExpenses / totalBudget) * 100), 100)}%` 
+                : "0%"}
             </div>
-            <div className="h-2 w-full bg-gray-200 rounded-full mt-2">
-              <div 
-                className={`h-full rounded-full ${
-                  totalExpenses > totalBudget ? 'bg-red-500' : 'bg-green-500'
-                }`}
-                style={{ 
-                  width: `${Math.min(Math.round((totalExpenses / totalBudget) * 100), 100)}%` 
-                }}
-              ></div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Of total budget used
+            </p>
           </CardContent>
         </Card>
       </div>
       
-      {/* Charts and Budget Overview */}
+      {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Spending Over Time</CardTitle>
+            <CardTitle>Spending Trends</CardTitle>
           </CardHeader>
-          <CardContent className="pl-2">
-            <SpendingChart expenses={expenses} convertToCurrency={currency} />
+          <CardContent className="h-[300px]">
+            <SpendingChart 
+              data={expenses} 
+              targetCurrency={currency} 
+              key={`spending-chart-${currency}`} // Force re-render when currency changes
+            />
           </CardContent>
         </Card>
-        
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Spending by Category</CardTitle>
+            <CardTitle>Category Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryDistribution data={categoryData} />
+            <div className="h-[300px] flex items-center justify-center">
+              <CategoryDistribution 
+                data={categoryData} 
+                targetCurrency={currency} 
+                key={`category-dist-${currency}`} // Force re-render when currency changes
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -231,7 +265,12 @@ export function DashboardContent({
             <CardTitle>Budget Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <BudgetOverview budgetStatus={budgetStatus} targetCurrency={currency} />
+            {/* Force the currency to be the user's preferred currency */}
+            <BudgetOverview 
+              budgetStatus={budgetStatus} 
+              targetCurrency={currency} 
+              key={`budget-overview-${currency}`} // Force re-render when currency changes
+            />
           </CardContent>
         </Card>
         
@@ -258,14 +297,6 @@ export function DashboardContent({
               ) : (
                 <div className="text-center py-4">
                   <p className="text-sm text-muted-foreground">No expenses found for this period.</p>
-                </div>
-              )}
-              
-              {latestExpenses.length > 0 && (
-                <div className="text-center pt-2">
-                  <Link href="/dashboard/expenses" className="text-sm text-blue-500 hover:underline">
-                    View all expenses
-                  </Link>
                 </div>
               )}
             </div>

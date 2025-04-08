@@ -34,27 +34,45 @@ export async function POST(request: NextRequest) {
     const fileType = receiptFile.type;
     let receiptData;
 
-    if (fileType === 'application/pdf') {
-      receiptData = await processPdfReceipt(receiptFile, categories || []);
-    } else if (fileType.startsWith('image/')) {
-      receiptData = await processImageReceipt(receiptFile, categories || []);
-    } else {
+    try {
+      if (fileType === 'application/pdf') {
+        receiptData = await processPdfReceipt(receiptFile, categories || []);
+      } else if (fileType.startsWith('image/')) {
+        receiptData = await processImageReceipt(receiptFile, categories || []);
+      } else {
+        return NextResponse.json(
+          { error: "Unsupported file type" },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      console.error("Error processing receipt:", error);
       return NextResponse.json(
-        { error: "Unsupported file type" },
+        { error: `Error processing receipt: ${error instanceof Error ? error.message : String(error)}` },
         { status: 400 }
       );
     }
+
+    // Debug logging
+    console.log("Receipt data before validation:", JSON.stringify(receiptData));
 
     // Validate receipt data
-    const validatedData = receiptDataSchema.safeParse(receiptData);
+    const validatedData = receiptDataSchema.safeParse(receiptData.data);
     if (!validatedData.success) {
+      console.error("Validation error:", validatedData.error.format());
       return NextResponse.json(
-        { error: "Invalid receipt data", details: validatedData.error },
+        { 
+          error: "Invalid receipt data", 
+          details: validatedData.error.format()
+        },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(validatedData.data);
+    return NextResponse.json({ 
+      data: validatedData.data,
+      filePath: receiptData.filePath
+    });
   } catch (error) {
     console.error("[process-receipt] Error:", error);
     return NextResponse.json(

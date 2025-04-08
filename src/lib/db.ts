@@ -529,6 +529,8 @@ export async function deleteExpense(userId: string, id: string) {
 // Budgets
 export async function getBudgets(userId: string) {
   try {
+    console.log(`[getBudgets] Fetching budgets for user: ${userId}`);
+    
     const { data, error } = await supabase
       .from('budgets')
       .select(`
@@ -543,13 +545,39 @@ export async function getBudgets(userId: string) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw error;
+      console.error("[getBudgets] Error:", error);
+      return []; // Return empty array instead of throwing error
     }
 
-    return data;
+    if (!data || data.length === 0) {
+      console.log("[getBudgets] No budgets found for user");
+      return [];
+    }
+
+    console.log(`[getBudgets] Found ${data.length} budgets`);
+    
+    // Ensure all budgets have valid categories
+    const processedData = data.map(budget => {
+      // Check if category is null or undefined
+      if (!budget.category) {
+        console.log(`[getBudgets] Budget ${budget.id} has missing category, adding default`);
+        // Add a default category
+        return {
+          ...budget,
+          category: {
+            id: budget.category_id || 'unknown',
+            name: 'Unknown Category',
+            color: '#888888'
+          }
+        };
+      }
+      return budget;
+    });
+
+    return processedData;
   } catch (error) {
     console.error("[getBudgets] Error:", error);
-    throw error;
+    return []; // Return empty array instead of throwing
   }
 }
 
@@ -739,7 +767,8 @@ export async function deleteBudget(userId: string, id: string) {
 // Analytics
 export async function getExpensesByCategory(userId: string, startDate: string, endDate: string) {
   try {
-    const { data: expenses, error } = await supabase
+    // Initialize the query
+    let query = supabase
       .from('expenses')
       .select(`
         *,
@@ -749,14 +778,41 @@ export async function getExpensesByCategory(userId: string, startDate: string, e
           color
         )
       `)
-      .eq('user_id', userId)
-      .gte('date', startDate)
-      .lte('date', endDate);
+      .eq('user_id', userId);
+    
+    // Only add date filters if they are provided and not empty
+    if (startDate && startDate.trim() !== '') {
+      query = query.gte('date', startDate);
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      query = query.lte('date', endDate);
+    }
+
+    // Execute the query
+    const { data: expenses, error } = await query;
 
     if (error) throw error;
 
     // Group expenses by category
     const expensesByCategory = expenses.reduce((acc, expense) => {
+      // Handle case where category might be null or undefined
+      if (!expense.category) {
+        const uncategorizedId = 'uncategorized';
+        if (!acc[uncategorizedId]) {
+          acc[uncategorizedId] = {
+            id: uncategorizedId,
+            name: 'Uncategorized',
+            color: '#999999',
+            amount: 0,
+            expenses: []
+          };
+        }
+        acc[uncategorizedId].amount += expense.amount;
+        acc[uncategorizedId].expenses.push(expense);
+        return acc;
+      }
+
       const categoryId = expense.category_id;
       if (!acc[categoryId]) {
         acc[categoryId] = {
@@ -781,7 +837,8 @@ export async function getExpensesByCategory(userId: string, startDate: string, e
 
 export async function getExpensesByMonth(userId: string, startDate: string, endDate: string) {
   try {
-    const { data, error } = await supabase
+    // Initialize the query
+    let query = supabase
       .from('expenses')
       .select(`
         *,
@@ -791,37 +848,41 @@ export async function getExpensesByMonth(userId: string, startDate: string, endD
           color
         )
       `)
-      .eq('user_id', userId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true });
+      .eq('user_id', userId);
+    
+    // Only add date filters if they are provided and not empty
+    if (startDate && startDate.trim() !== '') {
+      query = query.gte('date', startDate);
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      query = query.lte('date', endDate);
+    }
+    
+    // Always add order
+    query = query.order('date', { ascending: true });
+
+    // Execute the query
+    const { data, error } = await query;
 
     if (error) {
-      throw error;
+      console.error("[getExpensesByMonth] Error:", error);
+      return [];
     }
 
-    // Group expenses by month
-    const expensesByMonth = data.reduce((acc: any, expense) => {
-      const month = new Date(expense.date).toLocaleString('default', { month: 'long' });
-      if (!acc[month]) {
-        acc[month] = {
-          total: 0,
-          expenses: []
-        };
+    // Handle possible missing category
+    return data.map(expense => ({
+      ...expense,
+      // Ensure category is always defined, even if it's null in the database
+      category: expense.category || {
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        color: '#999999'
       }
-      acc[month].total += expense.amount;
-      acc[month].expenses.push(expense);
-      return acc;
-    }, {});
-
-    return Object.entries(expensesByMonth).map(([month, data]: [string, any]) => ({
-      month,
-      total: data.total,
-      expenses: data.expenses
     }));
   } catch (error) {
     console.error("[getExpensesByMonth] Error:", error);
-    throw error;
+    return [];
   }
 }
 

@@ -7,17 +7,19 @@ import { useSearchParams } from "next/navigation";
 import { getExpensesAction } from "@/app/actions/expense-actions";
 
 interface SpendingChartProps {
-  expenses: Array<{
+  data: Array<{
     id: string;
     date: Date | string;
     amount: number;
     currency?: string;
   }>;
-  convertToCurrency?: string;
+  targetCurrency?: string;
 }
 
-export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "USD" }: SpendingChartProps) {
-  const [expenses, setExpenses] = useState(initialExpenses);
+export function SpendingChart({ data, targetCurrency = "USD" }: SpendingChartProps) {
+  console.log(`SpendingChart rendering with targetCurrency: ${targetCurrency}`);
+
+  const [expenses, setExpenses] = useState(data);
   const searchParams = useSearchParams();
   
   // Re-fetch expenses when the URL params change
@@ -56,21 +58,19 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
     }
 
     // Create a map to store total amount for each day
-    const dailyTotals = new Map<string, number>();
+    const dailyTotals: Record<string, number> = {};
     
     // Process each expense
     expenses.forEach(expense => {
       const date = new Date(expense.date);
       const day = date.getDate();
-      const key = day.toString();
       
       // Convert currency if needed
       const expenseCurrency = expense.currency || "USD";
-      const amount = convertCurrency(expense.amount, expenseCurrency, convertToCurrency);
+      const amount = convertCurrency(expense.amount, expenseCurrency, targetCurrency);
       
       // Add to daily total
-      const currentTotal = dailyTotals.get(key) || 0;
-      dailyTotals.set(key, currentTotal + amount);
+      dailyTotals[day] = (dailyTotals[day] || 0) + amount;
     });
     
     // Convert the map to an array for the chart
@@ -87,7 +87,7 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
       for (let i = 1; i <= daysInMonth; i++) {
         data.push({
           day: i,
-          amount: dailyTotals.get(i.toString()) || 0,
+          amount: Number((dailyTotals[i] || 0).toFixed(2)),
         });
       }
       
@@ -95,7 +95,7 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
     }
     
     return [];
-  }, [expenses, convertToCurrency]);
+  }, [expenses, targetCurrency]);
 
   if (!expenses || expenses.length === 0) {
     return (
@@ -111,7 +111,7 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
         <div className="bg-background border border-input rounded-md p-2 shadow-sm">
           <p className="font-medium">{`Day ${payload[0].payload.day}`}</p>
           <p className="text-sm text-muted-foreground">
-            {formatCurrency(payload[0].value, convertToCurrency)}
+            {formatCurrency(payload[0].value, targetCurrency)}
           </p>
         </div>
       );
@@ -127,7 +127,7 @@ export function SpendingChart({ expenses: initialExpenses, convertToCurrency = "
           <XAxis dataKey="day" />
           <YAxis
             width={80}
-            tickFormatter={(value) => formatCurrency(value, convertToCurrency).split(".")[0]}
+            tickFormatter={(value) => formatCurrency(value, targetCurrency).split(".")[0]}
           />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />

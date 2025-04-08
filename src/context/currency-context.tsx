@@ -27,7 +27,8 @@ export function CurrencyProvider({
       try {
         const settings = await getUserSettingsAction();
         // Check if settings exists and has a currency property before using it
-        if (settings && settings.currency && settings.currency !== currency) {
+        if (settings && settings.currency) {
+          console.log(`Loading user currency preference: ${settings.currency}`);
           setCurrency(settings.currency);
         }
       } catch (error) {
@@ -36,7 +37,8 @@ export function CurrencyProvider({
     };
     
     loadSettings();
-  }, [currency]);
+    // Remove currency from dependency array to prevent infinite loops
+  }, []);
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency }}>

@@ -14,10 +14,11 @@ interface CategoryData {
 
 interface CategoryDistributionProps {
   data: CategoryData[];
+  targetCurrency?: string;
 }
 
-export function CategoryDistribution({ data }: CategoryDistributionProps) {
-  const { currency } = useCurrency();
+export function CategoryDistribution({ data, targetCurrency = "USD" }: CategoryDistributionProps) {
+  console.log(`CategoryDistribution rendering with targetCurrency: ${targetCurrency}`);
 
   // Ensure we have data for the chart
   const chartData = data?.length > 0 ? data : [];
@@ -39,7 +40,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
       return (
         <div className="bg-background border border-border rounded-md shadow-md p-2">
           <p className="font-medium">{data.name}</p>
-          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount, currency)}</p>
+          <p className="text-sm text-muted-foreground">{formatCurrency(data.amount, targetCurrency)}</p>
           <p className="text-xs text-muted-foreground">{data.percentage}% of total</p>
         </div>
       );

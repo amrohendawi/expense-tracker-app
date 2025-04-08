@@ -75,7 +75,7 @@ export const currencies = {
  */
 export const exchangeRates = {
   USD: 1,
-  EUR: 1.1897,
+  EUR: 0.9298, // Updated to a more accurate EUR to USD rate (was 1.1897)
   GBP: 0.8587,
   JPY: 160.93,
   CAD: 1.8585,

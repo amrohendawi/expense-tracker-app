@@ -87,6 +87,8 @@ export function convertCurrency(amount: number, fromCurrency: string, toCurrency
   }
   
   // First convert to USD as the base currency
+  // Note: Exchange rates are defined as "per 1 USD"
+  // So to convert to USD we divide by the rate
   const amountInUSD = amount / exchangeRates[from];
   
   // Then convert from USD to target currency

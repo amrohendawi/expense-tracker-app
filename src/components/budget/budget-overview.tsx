@@ -39,26 +39,68 @@ interface BudgetOverviewProps {
 }
 
 export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetOverviewProps) {
+  console.log(`BudgetOverview rendering with targetCurrency: ${targetCurrency}`);
+  console.log('budgetStatus received:', budgetStatus);
+
   // Convert budget amounts to target currency
   const convertedBudgetStatus = useMemo(() => {
+    if (!budgetStatus || !Array.isArray(budgetStatus) || budgetStatus.length === 0) {
+      console.log('No valid budget status data received');
+      return [];
+    }
+
     return budgetStatus.map(item => {
-      // Assuming budget amounts are in USD
-      const budgetAmount = convertCurrency(item.budget?.amount || item.amount, "USD", targetCurrency);
-      const spentAmount = convertCurrency(item.spent, "USD", targetCurrency);
-      const remainingAmount = budgetAmount - spentAmount;
-      const percentage = budgetAmount > 0 ? Math.min((spentAmount / budgetAmount) * 100, 100) : 0;
-      
-      return {
-        ...item,
-        amount: budgetAmount,
-        spent: spentAmount,
-        remaining: remainingAmount,
-        percentage
-      };
-    });
+      if (!item) {
+        console.log('Found a null or undefined budget item');
+        return null;
+      }
+
+      try {
+        // Get the source currency (with fallbacks)
+        const sourceCurrency = item.currency || (item.budget?.currency) || "USD";
+        console.log(`Processing budget: ${item.name || 'Unnamed'}, currency=${sourceCurrency}, target=${targetCurrency}`);
+        
+        // Get budget amount with fallbacks
+        const originalAmount = item.budget?.amount || item.amount || 0;
+        
+        // For display in the UI, we ALWAYS want to use the user's preferred currency
+        const budgetAmount = convertCurrency(
+          originalAmount, 
+          sourceCurrency, 
+          targetCurrency
+        );
+        
+        // Get spent amount with fallbacks
+        const originalSpent = typeof item.spent === 'number' ? item.spent : 0;
+        
+        // Convert spent amount - ALWAYS convert to user's preferred currency
+        const spentAmount = convertCurrency(originalSpent, sourceCurrency, targetCurrency);
+        
+        // Calculate remaining and percentage in the target currency
+        const remainingAmount = budgetAmount - spentAmount;
+        const percentage = budgetAmount > 0 ? Math.min((spentAmount / budgetAmount) * 100, 100) : 0;
+        
+        console.log(`Budget display: ${item.name || 'Unnamed'}, Amount: ${formatCurrency(budgetAmount, targetCurrency)}, Spent: ${formatCurrency(spentAmount, targetCurrency)}, Remaining: ${formatCurrency(remainingAmount, targetCurrency)}`);
+        
+        return {
+          ...item,
+          amount: budgetAmount,
+          spent: spentAmount,
+          remaining: remainingAmount,
+          percentage,
+          currency: targetCurrency // Ensure currency is set to target for formatting
+        };
+      } catch (error) {
+        console.error('Error processing budget item:', error, item);
+        return null;
+      }
+    }).filter(Boolean); // Filter out null items
   }, [budgetStatus, targetCurrency]);
 
-  if (!budgetStatus || budgetStatus.length === 0) {
+  console.log('Converted budget status:', convertedBudgetStatus);
+
+  if (!convertedBudgetStatus || convertedBudgetStatus.length === 0) {
+    console.log('No budget items to display after conversion');
     return (
       <div className="flex flex-col items-center justify-center h-40">
         <p className="text-muted-foreground">No budgets found</p>
@@ -79,7 +121,7 @@ export function BudgetOverview({ budgetStatus, targetCurrency = "USD" }: BudgetO
                 className="h-3 w-3 rounded-full"
                 style={{ backgroundColor: item.category?.color || item.color || "#888" }}
               ></div>
-              <span className="font-medium">{item.category?.name || item.name}</span>
+              <span className="font-medium">{item.category?.name || item.name || 'Unnamed Budget'}</span>
             </div>
             <div className="text-right">
               <span

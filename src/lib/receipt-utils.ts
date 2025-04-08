@@ -17,79 +17,12 @@ export type ReceiptInputType =
   | { type: 'text'; text: string };
 
 /**
- * Format and validate receipt data from AI response
- */
-export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptData {
-  // Format the date to ensure YYYY-MM-DD format or null
-  if (extractedData.date) {
-    try {
-      // Try to parse and format the date
-      const dateObj = new Date(extractedData.date);
-      // Check if date is valid
-      if (!isNaN(dateObj.getTime())) {
-        // Format as YYYY-MM-DD and ensure it's not in the future
-        const today = new Date();
-        if (dateObj > today) {
-          extractedData.date = null;
-        } else {
-          extractedData.date = dateObj.toISOString().split('T')[0];
-        }
-      } else {
-        // Invalid date - set to null
-        extractedData.date = null;
-      }
-    } catch (error) {
-      console.log("Error parsing date:", error);
-      extractedData.date = null;
-    }
-  }
-
-  // Convert amount to number if it's a string
-  if (typeof extractedData.amount === 'string') {
-    extractedData.amount = parseFloat(extractedData.amount);
-    
-    // If parsing fails, set a default value
-    if (isNaN(extractedData.amount)) {
-      extractedData.amount = 0;
-    }
-  }
-  
-  // Normalize and validate currency code - with enhanced logging for debugging
-  if (extractedData.currency) {
-    if (typeof extractedData.currency === 'string') {
-      // Convert to uppercase
-      const originalCurrency = extractedData.currency;
-      extractedData.currency = extractedData.currency.toUpperCase().trim();
-      
-      // Validate currency code against our supported list
-      const supportedCurrencies = getAllCurrencyCodes();
-      if (!supportedCurrencies.includes(extractedData.currency)) {
-        // Try to extract a valid currency code if possible
-        const matchedCurrency = supportedCurrencies.find(code => 
-          extractedData.currency?.includes(code)
-        );
-        extractedData.currency = matchedCurrency || 'USD';
-      }
-    } else {
-      // Not a string, set to default
-      extractedData.currency = 'USD';
-      console.info(`Invalid currency format, defaulting to USD`);
-    }
-  } else {
-    // No currency provided, set default
-    extractedData.currency = 'USD';
-    console.info(`No currency provided, defaulting to USD`);
-  }
-
-  return extractedData as ReceiptData;
-}
-
-/**
  * Extract relevant text from an AI response and parse as JSON
  */
 export function parseAIResponse(aiResponse: string): Partial<ReceiptData> {
   if (!aiResponse) {
-    throw new Error("Empty response from AI");
+    console.warn("Empty response from AI, returning defaults");
+    return { title: "Unnamed Receipt", amount: 1, currency: "USD" };
   }
 
   // Parse the JSON response
@@ -97,11 +30,111 @@ export function parseAIResponse(aiResponse: string): Partial<ReceiptData> {
   const jsonString = jsonMatch ? jsonMatch[0] : aiResponse;
   
   try {
-    return JSON.parse(jsonString);
+    const parsedData = JSON.parse(jsonString);
+    
+    // Ensure critical fields exist
+    if (!parsedData.title || parsedData.title.trim() === '') {
+      console.warn("Missing or empty title in AI response, setting default");
+      parsedData.title = "Unnamed Receipt";
+    }
+    
+    if (parsedData.amount === undefined || parsedData.amount === null) {
+      console.warn("Missing amount in AI response, setting default");
+      parsedData.amount = 1;
+    }
+    
+    return parsedData;
   } catch (error) {
     console.error("Error parsing AI response:", error);
-    throw new Error("Failed to parse AI response");
+    // Return default values when parsing fails
+    return { title: "Unnamed Receipt", amount: 1, currency: "USD" };
   }
+}
+
+/**
+ * Format and validate receipt data from AI response
+ */
+export function formatReceiptData(extractedData: Partial<ReceiptData>): ReceiptData {
+  // Create a new object with guaranteed defaults for all required fields
+  const formattedData: Partial<ReceiptData> = {
+    // Required fields with defaults
+    title: extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim() !== '' 
+      ? extractedData.title.trim() 
+      : "Unnamed Receipt",
+    
+    // Handle amount with better parsing and validation
+    amount: (() => {
+      let amount: number;
+      if (typeof extractedData.amount === 'number') {
+        amount = extractedData.amount;
+      } else if (typeof extractedData.amount === 'string') {
+        try {
+          // Remove any currency symbols or non-numeric characters except decimal point
+          const cleanedAmount = extractedData.amount.replace(/[^\d.-]/g, '');
+          amount = parseFloat(cleanedAmount);
+        } catch (e) {
+          amount = 1;
+        }
+      } else {
+        amount = 1;
+      }
+      // Ensure positive value
+      return isNaN(amount) || amount <= 0 ? 1 : amount;
+    })(),
+    
+    // Optional fields with defaults
+    date: null,
+    vendor: extractedData.vendor || '',
+    description: extractedData.description || '',
+    category: extractedData.category || 'Uncategorized',
+    suggestedCategory: extractedData.suggestedCategory || null,
+    currency: (() => {
+      if (!extractedData.currency) return 'USD';
+      
+      if (typeof extractedData.currency === 'string') {
+        const currencyCode = extractedData.currency.toUpperCase().trim();
+        const supportedCurrencies = getAllCurrencyCodes();
+        
+        if (supportedCurrencies.includes(currencyCode)) {
+          return currencyCode;
+        }
+        
+        // Try to extract a valid currency code
+        const matchedCurrency = supportedCurrencies.find(code => currencyCode.includes(code));
+        return matchedCurrency || 'USD';
+      }
+      
+      return 'USD';
+    })(),
+  };
+
+  // Format the date if present
+  if (extractedData.date) {
+    try {
+      const dateObj = new Date(extractedData.date);
+      // Check if date is valid and not in the future
+      if (!isNaN(dateObj.getTime())) {
+        const today = new Date();
+        formattedData.date = dateObj > today ? null : dateObj.toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.log("Error parsing date:", error);
+    }
+  }
+
+  // Preserve any additional fields from extracted data
+  if (extractedData.categoryId) {
+    formattedData.categoryId = extractedData.categoryId;
+  }
+  
+  if (extractedData.receiptUrl) {
+    formattedData.receiptUrl = extractedData.receiptUrl;
+  }
+
+  // Log for debugging
+  console.log("Formatted receipt data:", JSON.stringify(formattedData));
+
+  return formattedData as ReceiptData;
 }
 
 /**

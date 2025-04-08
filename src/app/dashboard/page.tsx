@@ -20,6 +20,7 @@ import { Suspense } from "react"
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
 import { getExpensesByCategoryAction } from "@/app/actions/analytics-actions"
 import { getBudgetStatusAction } from "@/app/actions/budget-actions"
+import { getUserSettingsAction } from "@/app/actions/settings-actions"
 
 // Add dynamic flag to ensure the page refreshes with URL changes
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,10 @@ export default async function DashboardPage({
 
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);
+  
+  // Get user settings first to determine currency preference
+  const userSettings = await getUserSettingsAction();
+  const preferredCurrency = userSettings?.currency || "USD";
   
   // Fetch all required data for the dashboard
   const categories = await getCategoriesAction();
@@ -85,12 +90,13 @@ export default async function DashboardPage({
 
         <Suspense fallback={<div className="p-8 text-center">Loading dashboard data...</div>}>
           <DashboardContent 
-            key={`${year}-${month}`} // Add key to force re-render on month/year change
+            key={`${year}-${month}-${preferredCurrency}`} // Force re-render when currency, month, or year changes
             startDate={startOfMonth} 
             endDate={endOfMonth}
             initialExpenses={expenses}
             initialBudgetStatus={budgetStatus}
             initialCategoryData={categoryData}
+            initialCurrency={preferredCurrency} // Pass user's currency preference
           />
         </Suspense>
       </SidebarInset>

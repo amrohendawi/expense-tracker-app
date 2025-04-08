@@ -124,27 +124,71 @@ export async function getBudgetStatusAction() {
       getExpenses(userId)
     ]);
 
+    // If there are no budgets, return an empty array
+    if (!budgets || budgets.length === 0) {
+      console.log("No budgets found for user");
+      return [];
+    }
+
+    console.log(`Found ${budgets.length} budgets and ${expenses.length} expenses`);
+
     // Calculate status for each budget
     const status = budgets.map(budget => {
-      const budgetExpenses = expenses.filter(e => e.category_id === budget.category_id);
-      const spent = budgetExpenses.reduce((sum, e) => sum + e.amount, 0);
+      // Ensure we have a valid category ID
+      const categoryId = budget.category_id;
+      
+      if (!categoryId) {
+        console.log(`Budget ${budget.id} has no category ID, skipping`);
+        return null;
+      }
+
+      // Filter expenses for this budget's category
+      const budgetExpenses = expenses.filter(e => e.category_id === categoryId);
+      
+      // Calculate spent amount in the budget's currency
+      const spent = budgetExpenses.reduce((sum, e) => {
+        // Skip invalid expenses
+        if (typeof e.amount !== 'number') {
+          console.log(`Expense ${e.id} has invalid amount: ${e.amount}`);
+          return sum;
+        }
+        
+        // For now, simple sum - currency conversion will happen in the component
+        return sum + e.amount;
+      }, 0);
+      
       const remaining = budget.amount - spent;
-      const percentage = (spent / budget.amount) * 100;
+      const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+
+      console.log(`Budget ${budget.name}: ${budget.amount} ${budget.currency || 'USD'}, Spent: ${spent}, Remaining: ${remaining}`);
+
+      // Make sure we have a category object
+      const category = budget.category || {
+        id: categoryId,
+        name: 'Unknown Category',
+        color: '#888888'
+      };
 
       return {
         id: budget.id,
-        name: budget.name,
-        category: budget.category.name,
-        color: budget.category.color,
+        name: budget.name || 'Unnamed Budget',
+        categoryId: categoryId,
+        category: {
+          id: category.id,
+          name: category.name,
+          color: category.color
+        },
         amount: budget.amount,
+        currency: budget.currency || "USD",
         spent,
         remaining,
         percentage,
         isOverBudget: spent > budget.amount,
         startDate: budget.start_date,
-        endDate: budget.end_date
+        endDate: budget.end_date,
+        period: budget.period || 'monthly'
       };
-    });
+    }).filter(Boolean); // Remove null entries
 
     return status;
   } catch (error) {
