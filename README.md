@@ -10,18 +10,15 @@ Here's a look at the Expense Tracker App in action:
 ![Dashboard View](docs/dashboard.jpeg)
 *The main dashboard showing expense analytics, budget utilization, category distribution, and recent expenses.*
 
-<div style="display: flex; gap: 20px;">
-  <div style="flex: 1;">
-    <h3>Mobile View</h3>
-    <img src="docs/mobile_view.jpeg" alt="Mobile View" width="100%">
-    <em>The responsive mobile interface showing spending trends and category distribution.</em>
-  </div>
-  <div style="flex: 1;">
-    <h3>Add Expense Feature</h3>
-    <img src="docs/add_expense_modal.jpeg" alt="Add Expense Modal" width="100%">
-    <em>Adding a new expense with category selection and receipt details.</em>
-  </div>
-</div>
+### Mobile View & Add Expense Feature
+<p align="center">
+  <img src="docs/mobile_view.jpeg" alt="Mobile View" width="45%" />
+  &nbsp; &nbsp; &nbsp; &nbsp;
+  <img src="docs/add_expense_modal.jpeg" alt="Add Expense Modal" width="45%" />
+</p>
+<p align="center">
+  <em>Mobile interface (left) and Add Expense feature (right)</em>
+</p>
 
 ## Features
 
