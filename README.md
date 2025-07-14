@@ -1,6 +1,6 @@
 # Expense Tracker App
 
-A modern expense tracking application built with Next.js, Supabase, and Clerk Authentication.
+A modern expense tracking application fully vibe-coded and built with Next.js, Supabase, and Clerk Authentication.
 
 ## Table of Contents
 
